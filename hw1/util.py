@@ -15,10 +15,19 @@ class   DataManager:
         for i in range(1,41):
             for j in range(1,11):
                 res.append(io.imread('{}/{}_{}.png'.format(path,str(i),str(j))).flatten())
-        self.data[name]=np.array(res)
-    def pca_construct(self,name,n):
+        res=np.array(res)
+        self.data[name]=res
+        train=[]
+        test=[]
+        for j in range(len(res)):
+            if 0<=(j%10)<=5:
+                train.append(res[j])
+            else:
+                test.append(res[j])
+        return np.array(train),np.array(test)
+    def pca_construct(self,data,n):
         pca = PCA(n_components=n)
-        pca.fit(self.data[name])
+        pca.fit(data)
         self.pca=pca
     def pca_transform(self,data):
         return self.pca.transform(data)
@@ -35,7 +44,6 @@ class   DataManager:
             correct+=self.KNN_nfold(k,n,6,9,0,9)
             return correct/160
         else: return ValueError("Wrong mode.")
-            
     def KNN_nfold(self,k,n,train_start,train_end,val_start,val_end):
         train_x,train_y=[],[]
         val_x,val_y=[],[]
