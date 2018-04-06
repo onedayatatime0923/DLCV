@@ -36,22 +36,22 @@ class   DataManager:
     def KNN(self,k,n,mode):
         correct=0
         if mode=='val':
-            correct+=self.KNN_nfold(k,n,0,1,0,6)
-            correct+=self.KNN_nfold(k,n,2,3,0,6)
-            correct+=self.KNN_nfold(k,n,4,5,0,6)
+            correct+=self.KNN_nfold(k,n,0,1,0,5)
+            correct+=self.KNN_nfold(k,n,2,3,0,5)
+            correct+=self.KNN_nfold(k,n,4,5,0,5)
             return correct/240
         elif mode=='test':
             correct+=self.KNN_nfold(k,n,6,9,0,9)
             return correct/160
         else: return ValueError("Wrong mode.")
-    def KNN_nfold(self,k,n,train_start,train_end,val_start,val_end):
+    def KNN_nfold(self,k,n,val_start,val_end,train_start,train_end):
         train_x,train_y=[],[]
         val_x,val_y=[],[]
         for j in range(len(self.data['image'])):
-            if train_start<=j%10<=train_end:
+            if val_start<=j%10<=val_end:
                 val_x.append(self.data['image'][j])
                 val_y.append(j//10+1)
-            elif val_start<=j%10<=val_end:
+            elif train_start<=j%10<=train_end:
                 train_x.append(self.data['image'][j])
                 train_y.append(j//10+1)
         train_x,train_y=np.array(train_x),np.array(train_y)
@@ -70,5 +70,3 @@ class   DataManager:
         if title != None:
             plt.title(title)
         plt.savefig(output_file)
-
-        
