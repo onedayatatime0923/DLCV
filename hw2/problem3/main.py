@@ -12,10 +12,12 @@ color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
 ###############################################################
 #                    problem 3.1                              #
 ###############################################################
+'''
+'''
 
 dm.read_image('image','train-10/Suburb/image_0029.jpg',mode='rgb')
 dm.surf_detect(dm.data['image'])
-dm.surf_plot(dm.data['image'],'pic/3_1_surf.png')
+dm.surf_plot(dm.data['image'],'pic/3_1_surf029.png')
 
 '''
 '''
