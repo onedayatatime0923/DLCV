@@ -57,7 +57,8 @@ class Datamanager:
     def pooling(self,data,mode):
         if mode=='sum':
             res=np.sum(data,0)
-            res/=np.std(res)
+            res/=np.linalg.norm(res)
+            print(np.linalg.norm(res))
             return res
         elif mode=='max':
             return np.max(data,0)

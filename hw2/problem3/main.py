@@ -56,6 +56,7 @@ plt.savefig('pic/3_2pca_cluster.png')
 #                    problem 3.3                              #
 ###############################################################
 '''
+'''
 feature=[]
 for d in os.listdir('train-10'):
     for f in os.listdir('train-10/{}'.format(d)):
@@ -73,10 +74,10 @@ for  i in mode:
     #print(emb.shape)
     dm.plot_bar(emb,'pic/3_3_histogram_{}_{}.png'.format(i[0],i[1]))
 '''
+'''
 ###############################################################
 #                    problem 3.3                              #
 ###############################################################
-'''
 '''
 train_dir='train-10'
 test_dir='test-100'
@@ -105,10 +106,9 @@ for i in range(len(test_dir_list)):
 mode=[('soft','max'),('hard','sum'),('soft','sum')]
 for m in mode:
     train_x_emb=np.array([dm.embedding(i,m) for i in train_x])
-    dm.KNN_construct(train_x_emb,train_y,len(train_dir))
+    dm.KNN_construct(train_x_emb,train_y,5)
 
     pred=np.array([dm.KNN_predict([dm.embedding(i,m)])[0] for i in test_x])
     correct=(test_y==pred).sum()
     print('Mode {} {} | Accuracy: {}%'.format(m[0],m[1],100.*correct/len(pred)))
-'''
 '''
