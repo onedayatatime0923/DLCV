@@ -36,7 +36,7 @@ class Datamanager:
         self.pca=pca
     def pca_transform(self,data):
         return self.pca.transform(data)
-    def kmeans_construct(self,data,n=50,max_iter=500):
+    def kmeans_construct(self,data,n=50,max_iter=5000):
         self.kmeans= KMeans(n_clusters=n, random_state=0,max_iter=max_iter).fit(data)
     def kmeans_assign(self,data,mode):
         if mode=='hard':

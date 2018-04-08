@@ -13,13 +13,11 @@ color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
 #                    problem 3.1                              #
 ###############################################################
 '''
-'''
 
 dm.read_image('image','train-10/Suburb/image_0029.jpg',mode='rgb')
 dm.surf_detect(dm.data['image'])
 dm.surf_plot(dm.data['image'],'pic/3_1_surf029.png')
 
-'''
 '''
 ###############################################################
 #                    problem 3.2                              #
@@ -79,8 +77,8 @@ for  i in mode:
 #                    problem 3.3                              #
 ###############################################################
 '''
-
-train_dir='train-100'
+'''
+train_dir='train-10'
 test_dir='test-100'
 train_dir_list=os.listdir(train_dir)
 test_dir_list=os.listdir(test_dir)
@@ -89,10 +87,10 @@ train_y=[]
 for i in range(len(train_dir_list)):
     for f in os.listdir('{}/{}'.format(train_dir,train_dir_list[i])):
         dm.read_image('image','{}/{}/{}'.format(train_dir,train_dir_list[i],f),mode='rgb')
-        train_y.append(i)
         train_x.append(dm.surf_detect(dm.data['image']))
-train_y=np.array(train_y)
+        train_y.append(i)
 train_x=np.array(train_x)
+train_y=np.array(train_y)
 feature=np.concatenate(train_x,0)
 dm.kmeans_construct(feature)
 
@@ -112,6 +110,5 @@ for m in mode:
     pred=np.array([dm.KNN_predict([dm.embedding(i,m)])[0] for i in test_x])
     correct=(test_y==pred).sum()
     print('Mode {} {} | Accuracy: {}%'.format(m[0],m[1],100.*correct/len(pred)))
-
-
+'''
 '''
