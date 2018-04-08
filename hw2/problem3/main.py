@@ -56,28 +56,29 @@ plt.savefig('pic/3_2pca_cluster.png')
 #                    problem 3.3                              #
 ###############################################################
 '''
-'''
-feature=[]
-for d in os.listdir('train-10'):
-    for f in os.listdir('train-10/{}'.format(d)):
-        dm.read_image('image','train-10/{}/{}'.format(d,f),mode='rgb')
-        feature.append(dm.surf_detect(dm.data['image']))
-feature=np.concatenate(feature,0)
+train_dir='train-10'
+test_dir='test-100'
+train_dir_list=os.listdir(train_dir)
+test_dir_list=os.listdir(test_dir)
+data=[]
+for d in train_dir_list:
+    for f in os.listdir('{}/{}'.format(train_dir,d)):
+        dm.read_image('image','{}/{}/{}'.format(train_dir,d,f),mode='rgb')
+        data.append(dm.surf_detect(dm.data['image']))
+data=np.array(data)
+feature=np.concatenate(data,0)
 dm.kmeans_construct(feature)
 
-dm.read_image('image','train-10/Forest/image_0003.jpg',mode='rgb')
 mode=[('soft','max'),('soft','sum'),('hard','sum')]
-for  i in mode:
-    assign_=dm.kmeans_assign(dm.surf_detect(dm.data['image']),mode=i[0])
-    #print(assign_.shape)
-    emb=dm.pooling(assign_,mode=i[1])
-    #print(emb.shape)
-    dm.plot_bar(emb,'pic/3_3_histogram_{}_{}.png'.format(i[0],i[1]))
-'''
+for  m in mode:
+    for j in range(5):
+        emb=dm.embedding(data[j*10],mode=m)
+        dm.plot_bar(emb,'class{}_{}_{}'.format(train_dir_list[j],m[0],m[1]),'pic/3_3_class{}_{}_{}.png'.format(train_dir_list[j],m[0],m[1]))
 '''
 ###############################################################
 #                    problem 3.3                              #
 ###############################################################
+'''
 '''
 train_dir='train-10'
 test_dir='test-100'
@@ -111,4 +112,5 @@ for m in mode:
     pred=np.array([dm.KNN_predict([dm.embedding(i,m)])[0] for i in test_x])
     correct=(test_y==pred).sum()
     print('Mode {} {} | Accuracy: {}%'.format(m[0],m[1],100.*correct/len(pred)))
+'''
 '''

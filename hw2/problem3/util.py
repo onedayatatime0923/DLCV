@@ -58,7 +58,6 @@ class Datamanager:
         if mode=='sum':
             res=np.sum(data,0)
             res/=np.linalg.norm(res)
-            print(np.linalg.norm(res))
             return res
         elif mode=='max':
             return np.max(data,0)
@@ -78,7 +77,7 @@ class Datamanager:
         plt.imshow(data)
         #plt.show()
         plt.savefig(path)
-    def plot_bar(self,data,path):
+    def plot_bar(self,data,title,path):
         plt.figure()
         x=np.arange(data.shape[0])
         plt.bar(x, data, facecolor='#9999ff', edgecolor='white')
@@ -86,6 +85,7 @@ class Datamanager:
             # ha: horizontal alignment
             # va: vertical alignment
             plt.text(x + 0.25, y + 0.01, '%.2f' % y,ha='center', va='bottom',size=8) 
+        plt.title(title)
         #plt.show()
         plt.savefig(path)
     def embedding(self,points,mode):
