@@ -71,8 +71,8 @@ class Datamanager:
         surf=self.surf
         kp= surf.detect(image,None)[:30]
         img2 = cv2.drawKeypoints(image,kp,None,(255,0,0),4)
-        self.plot(img2,path)
-    def plot_scatter(self,data,path):
+        self.plot_image(img2,path)
+    def plot_image(self,data,path):
         data=data.astype(np.uint8)
         plt.imshow(data)
         #plt.show()
