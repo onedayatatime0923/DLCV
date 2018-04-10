@@ -96,7 +96,7 @@ for i in range(len(train_dir_list)):
 train_x=np.array(train_x)
 train_y=np.array(train_y)
 feature=np.concatenate(train_x,0)
-dm.kmeans_construct(feature,n=30)
+dm.kmeans_construct(feature,n=10,max_iter=10000)
 
 test_x=[]
 test_y=[]
