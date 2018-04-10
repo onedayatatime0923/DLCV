@@ -52,7 +52,7 @@ for i in range(len(x)):
     if y[i]<6:
         ax.scatter(x[i,0],x[i,1],x[i,2],s=3,c=color[y[i]])
 for i in range(len(x_center)):
-    ax.scatter(x_center[i,0],x_center[i,1],x_center[i,2],s=10,marker='v',c=color[y_center[i]])
+    ax.scatter(x_center[i,0],x_center[i,1],x_center[i,2],s=50,marker='v',c=color[y_center[i]])
 ax.set_title('Visual Words and the Associated Interest Points')
 plt.savefig('pic/3_b_pca_cluster.png')
 '''
