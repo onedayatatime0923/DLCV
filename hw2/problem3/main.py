@@ -13,22 +13,19 @@ color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
 #                    problem 3.a                              #
 ###############################################################
 '''
-'''
 pic='Suburb/image_0029'
-dm.read_image('image','train-10/{}.jpg'.format(pic),mode='rgb')
+dm.read_image('image','train-100/{}.jpg'.format(pic),mode='rgb')
 dm.surf_detect(dm.data['image'])
 dm.surf_plot(dm.data['image'],'Interest Point on {}'.format(pic),'pic/3_a_surf.png')
-'''
 '''
 ###############################################################
 #                    problem 3.b                              #
 ###############################################################
 '''
-'''
 feature=[]
-for d in os.listdir('train-10'):
-    for f in os.listdir('train-10/{}'.format(d)):
-        dm.read_image('image','train-10/{}/{}'.format(d,f),mode='rgb')
+for d in os.listdir('train-100'):
+    for f in os.listdir('train-100/{}'.format(d)):
+        dm.read_image('image','train-100/{}/{}'.format(d,f),mode='rgb')
         feature.append(dm.surf_detect(dm.data['image']))
 feature=np.concatenate(feature,0)
 
@@ -39,9 +36,9 @@ x=dm.pca_transform(feature)
 #print(x,y)
 #print(x.shape,y.shape)
 x_center=dm.pca_transform(dm.kmeans.cluster_centers_[:6])
-print(x_center)
+#print(x_center)
 y_center=np.arange(6)
-print(y_center)
+#print(y_center)
 #print(x_center,y_center)
 #rint(x_center.shape,y_center.shape)
 
@@ -56,13 +53,11 @@ for i in range(len(x_center)):
 ax.set_title('Visual Words and the Associated Interest Points')
 plt.savefig('pic/3_b_pca_cluster.png')
 '''
-'''
 ###############################################################
 #                    problem 3.c                              #
 ###############################################################
 '''
-'''
-train_dir='train-10'
+train_dir='train-100'
 test_dir='test-100'
 train_dir_list=os.listdir(train_dir)
 test_dir_list=os.listdir(test_dir)
@@ -82,13 +77,12 @@ for j in range(len(train_dir_list)):
         emb.append((train_dir_list[j],m[0],m[1],dm.embedding(data[j*10],mode=m)))
 dm.plot_bar(emb,'pic/3_c_histogram.png')
 '''
-'''
 ###############################################################
 #                    problem 3.d                              #
 ###############################################################
 '''
 '''
-train_dir='train-10'
+train_dir='train-100'
 test_dir='test-100'
 train_dir_list=os.listdir(train_dir)
 test_dir_list=os.listdir(test_dir)
@@ -102,7 +96,7 @@ for i in range(len(train_dir_list)):
 train_x=np.array(train_x)
 train_y=np.array(train_y)
 feature=np.concatenate(train_x,0)
-dm.kmeans_construct(feature)
+dm.kmeans_construct(feature,n=30)
 
 test_x=[]
 test_y=[]
