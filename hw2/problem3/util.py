@@ -68,7 +68,7 @@ class Datamanager:
             plt.subplot(5,3,i+1)
             x=np.arange(data[i][3].shape[0])
             plt.bar(x, data[i][3], facecolor='#9999ff', edgecolor='white')
-            plt.title('Class_{}_{}_{}'.format(data[i][0],data[i][1],data[i][2]),fontdict={'fontsize':12})
+            plt.title('Class_{}_{}_{}'.format(data[i][0],data[i][1],data[i][2]),fontdict={'fontsize':50})
         #plt.show()
         plt.savefig(path)
     def embedding(self,points,mode):

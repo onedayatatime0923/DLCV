@@ -13,16 +13,17 @@ color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
 #                    problem 3.a                              #
 ###############################################################
 '''
-
+'''
 pic='Suburb/image_0029'
 dm.read_image('image','train-10/{}.jpg'.format(pic),mode='rgb')
 dm.surf_detect(dm.data['image'])
 dm.surf_plot(dm.data['image'],'Interest Point on {}'.format(pic),'pic/3_a_surf.png')
-
+'''
 '''
 ###############################################################
 #                    problem 3.b                              #
 ###############################################################
+'''
 '''
 feature=[]
 for d in os.listdir('train-10'):
@@ -55,6 +56,7 @@ for i in range(len(x_center)):
 ax.set_title('Visual Words and the Associated Interest Points')
 plt.savefig('pic/3_b_pca_cluster.png')
 '''
+'''
 ###############################################################
 #                    problem 3.c                              #
 ###############################################################
@@ -84,6 +86,7 @@ dm.plot_bar(emb,'pic/3_c_histogram.png')
 ###############################################################
 #                    problem 3.d                              #
 ###############################################################
+'''
 '''
 train_dir='train-10'
 test_dir='test-100'
@@ -120,4 +123,5 @@ for m in mode:
     pred=np.array([dm.KNN_predict([dm.embedding(i,m)])[0] for i in test_x])
     correct=(test_y==pred).sum()
     print('Mode {} {} | Accuracy: {}%'.format(m[0],m[1],100.*correct/len(pred)))
+'''
 '''
