@@ -78,7 +78,7 @@ mode=[('soft','max'),('soft','sum'),('hard','sum')]
 for  m in mode:
     for j in range(len(train_dir_list)):
         emb.append((train_dir_list[j],m[0],m[1],dm.embedding(data[j*10],mode=m)))
-dm.plot_bar(emb,'pic/3_3_histogram.png')
+dm.plot_bar(emb,'pic/3_c_histogram.png')
 '''
 '''
 ###############################################################
