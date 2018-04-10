@@ -10,19 +10,20 @@ dm=Datamanager()
 color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
 
 ###############################################################
-#                    problem 3.1                              #
+#                    problem 3.a                              #
 ###############################################################
 '''
 '''
 
-dm.read_image('image','train-10/Suburb/image_0029.jpg',mode='rgb')
+pic='Suburb/image_0029'
+dm.read_image('image','train-10/{}.jpg'.format(pic),mode='rgb')
 dm.surf_detect(dm.data['image'])
-dm.surf_plot(dm.data['image'],'pic/3_1_surf029.png')
+dm.surf_plot(dm.data['image'],'Interest Point on {}'.format(pic),'pic/3_a_surf029.png')
 
 '''
 '''
 ###############################################################
-#                    problem 3.2                              #
+#                    problem 3.b                              #
 ###############################################################
 '''
 '''
@@ -39,8 +40,8 @@ dm.pca_construct(feature,3)
 x=dm.pca_transform(feature)
 #print(x,y)
 #print(x.shape,y.shape)
-y_center=np.arange(6)
 x_center=dm.pca_transform(dm.kmeans.cluster_centers_[:6])
+y_center=np.arange(6)
 #print(x_center,y_center)
 #rint(x_center.shape,y_center.shape)
 
@@ -51,13 +52,13 @@ for i in range(len(x)):
     if y[i]<6:
         ax.scatter(x[i,0],x[i,1],x[i,2],s=3,c=color[y[i]])
 for i in range(len(x_center)):
-    ax.scatter(x_center[i,0],x_center[i,1],x_center[i,2],s=10,c=color[y_center[i]])
-plt.savefig('pic/3_2pca_cluster.png')
-
+    ax.scatter(x_center[i,0],x_center[i,1],x_center[i,2],s=3,marker='v',c=color[y_center[i]])
+plt.title('Visual Words and the Associated Interest Points')
+plt.savefig('pic/3_b_pca_cluster.png')
 '''
 '''
 ###############################################################
-#                    problem 3.3                              #
+#                    problem 3.c                              #
 ###############################################################
 '''
 '''
@@ -76,17 +77,17 @@ dm.kmeans_construct(feature)
 
 mode=[('soft','max'),('soft','sum'),('hard','sum')]
 for  m in mode:
-    for j in range(5):
+    for j in range(len(train_dir_list)):
         emb=dm.embedding(data[j*10],mode=m)
-        dm.plot_bar(emb,'class{}_{}_{}'.format(train_dir_list[j],m[0],m[1]),'pic/3_3_class{}_{}_{}.png'.format(train_dir_list[j],m[0],m[1]))
+        dm.plot_bar(emb,'Class_{}_{}_{}'.format(train_dir_list[j],m[0],m[1]),'pic/3_3_class{}_{}_{}.png'.format(train_dir_list[j],m[0],m[1]))
 '''
 '''
 ###############################################################
-#                    problem 3.3                              #
+#                    problem 3.d                              #
 ###############################################################
 '''
 '''
-train_dir='train-100'
+train_dir='train-10'
 test_dir='test-100'
 train_dir_list=os.listdir(train_dir)
 test_dir_list=os.listdir(test_dir)

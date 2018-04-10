@@ -49,13 +49,15 @@ class Datamanager:
         self.surf= surf
         kp, des = surf.detectAndCompute(data,None)
         return des
-    def surf_plot(self,image,path):
+    def surf_plot(self,image,title,path):
         surf=self.surf
         kp= surf.detect(image,None)[:30]
         img2 = cv2.drawKeypoints(image,kp,None,(255,0,0),4)
-        self.plot_image(img2,path)
-    def plot_image(self,data,path):
+        self.plot_image(img2,title,path)
+    def plot_image(self,data,title,path):
         data=data.astype(np.uint8)
+        plt.figure()
+        plt.title(title)
         plt.imshow(data)
         #plt.show()
         plt.savefig(path)
