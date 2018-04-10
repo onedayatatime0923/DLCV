@@ -62,7 +62,7 @@ class Datamanager:
         #plt.show()
         plt.savefig(path)
     def plot_bar(self,data,path):
-        plt.figure(figsize=(250,150))
+        plt.figure(figsize=(100,60))
         plt.subplots_adjust(wspace=0.5, hspace=0.5)
         for i in range(len(data)):
             plt.subplot(5,3,i+1)
