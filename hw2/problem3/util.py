@@ -57,8 +57,8 @@ class Datamanager:
     def plot_image(self,data,title,path):
         data=data.astype(np.uint8)
         plt.figure()
-        plt.title(title)
         plt.imshow(data)
+        plt.title(title)
         #plt.show()
         plt.savefig(path)
     def plot_bar(self,data,title,path):

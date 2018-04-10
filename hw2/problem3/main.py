@@ -18,7 +18,7 @@ color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
 pic='Suburb/image_0029'
 dm.read_image('image','train-10/{}.jpg'.format(pic),mode='rgb')
 dm.surf_detect(dm.data['image'])
-dm.surf_plot(dm.data['image'],'Interest Point on {}'.format(pic),'pic/3_a_surf029.png')
+dm.surf_plot(dm.data['image'],'Interest Point on {}'.format(pic),'pic/3_a_surf.png')
 
 '''
 '''
@@ -52,8 +52,8 @@ for i in range(len(x)):
     if y[i]<6:
         ax.scatter(x[i,0],x[i,1],x[i,2],s=3,c=color[y[i]])
 for i in range(len(x_center)):
-    ax.scatter(x_center[i,0],x_center[i,1],x_center[i,2],s=3,marker='v',c=color[y_center[i]])
-plt.title('Visual Words and the Associated Interest Points')
+    ax.scatter(x_center[i,0],x_center[i,1],x_center[i,2],s=10,marker='v',c=color[y_center[i]])
+ax.set_title('Visual Words and the Associated Interest Points')
 plt.savefig('pic/3_b_pca_cluster.png')
 '''
 '''
