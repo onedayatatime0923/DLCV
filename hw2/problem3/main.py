@@ -13,15 +13,18 @@ color=['C0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
 #                    problem 3.1                              #
 ###############################################################
 '''
+'''
 
 dm.read_image('image','train-10/Suburb/image_0029.jpg',mode='rgb')
 dm.surf_detect(dm.data['image'])
 dm.surf_plot(dm.data['image'],'pic/3_1_surf029.png')
 
 '''
+'''
 ###############################################################
 #                    problem 3.2                              #
 ###############################################################
+'''
 '''
 feature=[]
 for d in os.listdir('train-10'):
@@ -52,9 +55,11 @@ for i in range(len(x_center)):
 plt.savefig('pic/3_2pca_cluster.png')
 
 '''
+'''
 ###############################################################
 #                    problem 3.3                              #
 ###############################################################
+'''
 '''
 train_dir='train-10'
 test_dir='test-100'
@@ -75,12 +80,13 @@ for  m in mode:
         emb=dm.embedding(data[j*10],mode=m)
         dm.plot_bar(emb,'class{}_{}_{}'.format(train_dir_list[j],m[0],m[1]),'pic/3_3_class{}_{}_{}.png'.format(train_dir_list[j],m[0],m[1]))
 '''
+'''
 ###############################################################
 #                    problem 3.3                              #
 ###############################################################
 '''
 '''
-train_dir='train-10'
+train_dir='train-100'
 test_dir='test-100'
 train_dir_list=os.listdir(train_dir)
 test_dir_list=os.listdir(test_dir)
@@ -103,6 +109,9 @@ for i in range(len(test_dir_list)):
         dm.read_image('image','{}/{}/{}'.format(test_dir,test_dir_list[i],f),mode='rgb')
         test_x.append(dm.surf_detect(dm.data['image']))
         test_y.append(i)
+test_x=np.array(test_x)
+test_y=np.array(test_y)
+
 
 mode=[('soft','max'),('hard','sum'),('soft','sum')]
 for m in mode:
