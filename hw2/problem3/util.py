@@ -71,16 +71,16 @@ class Datamanager:
             plt.title('Class_{}_{}_{}'.format(data[i][0],data[i][1],data[i][2]),fontdict={'fontsize':80})
         #plt.show()
         plt.savefig(path)
-    def embedding(self,points,mode):
-        assign_=self.kmeans_assign(points,mode=mode[0])
+    def embedding(self,points,mode,n_class):
+        assign_=self.kmeans_assign(points,mode[0],n_class)
         #print(assign_.shape)
         emb=self.pooling(assign_,mode=mode[1])
         #print(emb.shape)
         return emb
-    def kmeans_assign(self,data,mode):
+    def kmeans_assign(self,data,mode,n_class=50):
         if mode=='hard':
             c=self.kmeans.predict(data).reshape((-1,1))
-            enc = OneHotEncoder(50,sparse=False).fit(c)
+            enc = OneHotEncoder(n_class,sparse=False).fit(c)
             res=enc.transform(c)
             return res
         elif mode=='soft':
