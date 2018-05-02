@@ -84,6 +84,7 @@ dm.plot_bar(emb,'pic/3_c_histogram.png')
 '''
 train_dir='train-100'
 test_dir='test-100'
+n_class=300
 train_dir_list=os.listdir(train_dir)
 test_dir_list=os.listdir(test_dir)
 train_x=[]
@@ -96,7 +97,7 @@ for i in range(len(train_dir_list)):
 train_x=np.array(train_x)
 train_y=np.array(train_y)
 feature=np.concatenate(train_x,0)
-dm.kmeans_construct(feature,n=30)
+dm.kmeans_construct(feature,n=n_class,max_iter=5000)
 
 test_x=[]
 test_y=[]
@@ -111,7 +112,7 @@ test_y=np.array(test_y)
 
 mode=[('soft','max'),('hard','sum'),('soft','sum')]
 for m in mode:
-    train_x_emb=np.array([dm.embedding(i,m) for i in train_x])
+    train_x_emb=np.array([dm.embedding(i,m,n_class) for i in train_x])
     dm.KNN_construct(train_x_emb,train_y,5)
 
     pred=np.array([dm.KNN_predict([dm.embedding(i,m)])[0] for i in test_x])
