@@ -10,7 +10,7 @@ import time, os, math
 assert torch and nn and Variable and F and Dataset and DataLoader
 assert time and np
 
-torch.manual_seed(510)
+torch.manual_seed(923)
 
 class DataManager():
     def __init__(self,latent_dim, discriminator_update_num, generator_update_num):
