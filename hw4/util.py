@@ -174,7 +174,7 @@ class DataManager():
             im=data[i].transpose((1,2,0))*255
             im=im.astype(np.uint8)
             image = Image.fromarray(im,'RGB')
-            image.save('{}/4{:0>4}.png'.format(path,i))
+            image.save('{}/{:0>4}.png'.format(path,i))
     def timeSince(self,since, percent):
         now = time.time()
         s = now - since
