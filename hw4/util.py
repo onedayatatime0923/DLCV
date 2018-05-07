@@ -10,13 +10,15 @@ import time, os, math
 assert torch and nn and Variable and F and Dataset and DataLoader
 assert time and np
 
+torch.manual_seed(510)
+
 class DataManager():
     def __init__(self,latent_dim, discriminator_update_num, generator_update_num):
         self.data={}
         self.latent_dim= latent_dim
         self.discriminator_update_num= discriminator_update_num
         self.generator_update_num= generator_update_num
-    def get_data(self,name,path,mode,batch_size, shuffle):
+    def get_data(self,name,path,batch_size, shuffle):
         x=[]
         for p in path:
             file_list = [file for file in os.listdir(p) if file.endswith('.png')]
@@ -26,9 +28,9 @@ class DataManager():
                 print('\rreading {} data...{}'.format(name,i),end='')
         print('\rreading {} data...finish'.format(name))
         x=np.array(x)
-        self.data[name]=DataLoader(ImageDataset(x), mode,batch_size=batch_size, shuffle=shuffle)
+        self.data[name]=DataLoader(ImageDataset(x ),batch_size=batch_size, shuffle=shuffle)
         return x.shape[1:]
-    def train_gan(self,name, generator, discriminator, optimizer, epoch, kl_coefficient=5E-5, print_every=5):
+    def train_gan(self,name, generator, discriminator, optimizer, epoch, print_every=5):
         start= time.time()
         generator.train()
         discriminator.train()
@@ -43,77 +45,53 @@ class DataManager():
         data_size= len(self.data[name].dataset)
         for i, y in enumerate(self.data[name]):
             batch_index=i+1
+            batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
             batch_y = Variable(y).cuda()
             # update discriminator
-            batch_x = torch.normal(torch.zeros(len(y),self.latent_dim))
-            output_g= torch.cat((discriminator(generator(batch_x)),torch.zeros(len(batch_y),1)),1)
-            output_d= torch.cat((discriminator(batch_y),torch.zeros(len(batch_y),1)),1)
-            output= torch.cat((output_g,output_d),0)
-            output = output[torch.randperm(len(output))]
-            loss = criterion(output[:,0],output[:,1])
-            discriminator_optimizer.zero_grad()
-            loss.backward()
-            discriminator_optimizer.step()
+            for j in range(self.discriminator_update_num):
+                output_data= torch.cat((discriminator(generator(batch_x)),discriminator(batch_y)),0)
+                output_label= torch.cat((torch.zeros(len(batch_x),1),torch.ones(len(batch_x),1)),0).cuda()
+                random_index=torch.randperm(len(output_data)).cuda()
+                output_data= torch.index_select(output_data,0,random_index)
+                output_label= torch.index_select(output_label,0,random_index).detach()
+                loss = criterion(output_data,output_label)
+                discriminator_optimizer.zero_grad()
+                loss.backward()
+                discriminator_optimizer.step()
+                batch_loss+= float(loss)
 
             # update generator
-            batch_x = torch.normal(torch.zeros(len(y),self.latent_dim))
-            output_g= torch.cat((discriminator(generator(batch_x)),torch.zeros(len(batch_y),1)),1)
-            output_d= torch.cat((discriminator(batch_y),torch.zeros(len(batch_y),1)),1)
-            output= torch.cat((output_g,output_d),0)
-            output = output[torch.randperm(len(output))]
-            loss = criterion(output[:,0],output[:,1])
-            generator_optimizer.zero_grad()
-            (-loss).backward()
-            generator_optimizer.step()
+            for j in range(self.generator_update_num):
+                output_data= torch.cat((discriminator(generator(batch_x)),discriminator(batch_y)),0)
+                output_label= torch.cat((torch.zeros(len(batch_x),1),torch.ones(len(batch_x),1)),0).cuda()
+                random_index=torch.randperm(len(output_data)).cuda()
+                output_data= torch.index_select(output_data,0,random_index)
+                output_label= torch.index_select(output_label,0,random_index).detach()
+                loss = criterion(output_data,output_label)
+                generator_optimizer.zero_grad()
+                (-loss).backward()
+                generator_optimizer.step()
+                batch_loss+= float(loss)
+            batch_loss/= (self.generator_update_num+self.discriminator_update_num)
 
-            batch_loss+= float(loss)
-            total_loss+= float(loss)
             if batch_index% print_every == 0:
                 print_loss= batch_loss / print_every
+                total_loss+= batch_loss
                 batch_loss= 0
                 print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] |  Loss: {:.6f} | Time: {}  '.format(
-                                epoch , batch_index*len(batch_x), data_size, 100. * batch_index*len(batch_x)/ data_size, 
-                                float(print_loss),
+                                epoch , batch_index*len(batch_x), data_size, 
+                                100. * batch_index*len(batch_x)/ data_size, float(print_loss),
                                 self.timeSince(start, batch_index*len(batch_x)/ data_size)),end='')
         print('\nTime: {} | Total  Loss: {:.6f}   '.format(self.timeSince(start,1),
                     float(total_loss)/batch_index))
         print('-'*80)
-    def val_gan(self,name, encoder, decoder, optimizer, epoch, print_every=5, record=0, path=None):
-        start= time.time()
-        encoder.eval()
-        decoder.eval()
-
-        criterion = nn.MSELoss()
-        total_loss= 0
-        predict=[]
+    def val_gan(self, generator, discriminator, n=5, path=None):
+        generator.eval()
+        discriminator.eval()
         
-        data_size= len(self.data[name].dataset)
-        for i, (x, y) in enumerate(self.data[name]):
-            batch_index=i+1
-            batch_x, batch_y= Variable(x).cuda(), Variable(y).cuda()
-            mean_x, logvar_x= encoder(batch_x)
-            output= decoder(mean_x, logvar_x, mode='val')
-            reconstruction_loss = criterion(output,batch_y)
-            kl_divergence_loss= torch.sum((-1/2)*( 1+ logvar_x- mean_x**2 - torch.exp(logvar_x)))/(len(x))
-            # loss
-            total_loss+= torch.FloatTensor([float(reconstruction_loss), float(kl_divergence_loss)]) # sum up total loss
-            # predict
-            predict.extend(output.cpu().data.unsqueeze(0))
-            if batch_index % print_every == 0:
-                print('\rVal: [{}/{} ({:.0f}%)] | Time: {}'.format(
-                         batch_index * len(x), data_size,
-                        100. * batch_index* len(x) / data_size,
-                        self.timeSince(start, batch_index*len(x)/ data_size)),end='')
-
-        total_loss/=  batch_index
-        predict=torch.cat(predict,0)
-        print('\nVal set: Average Reconstruction Loss: {:.6f} | Average KL Divergance Loss: {:.6f} | Time: {}  '.format(float(total_loss[0]),float(total_loss[1]),
-                        self.timeSince(start, batch_index*len(batch_x)/ data_size)))
-        print('-'*80)
-        if float(total_loss[0])< record and path != None:
-            self.write(predict,path)
-            record=float(total_loss[0])
-        return record
+        batch_x = Variable(torch.normal(torch.zeros(n,self.latent_dim))).cuda()
+        predict= generator(batch_x).cpu().data
+        self.write(predict,path)
     def train_vae(self,name, encoder, decoder, optimizer, epoch, kl_coefficient=5E-5, print_every=5):
         start= time.time()
         encoder.train()
@@ -299,22 +277,22 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.output_size=output_size
         self.conv1 = nn.Sequential(                 # input shape (1, 28, 28)
-            nn.Conv2d(input_size[0], 128, 3, 1, 1),              # output shape (16, 28, 28)
+            nn.Conv2d(input_size[0], 32, 3, 1, 1),              # output shape (16, 28, 28)
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=2),            # output shape (16,  7,  7)
         )
         self.conv2 = nn.Sequential(
-            nn.Conv2d(128, 64, 3, 1, 1),         
+            nn.Conv2d( 32, 16, 3, 1, 1),         
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=2),            
         )
         self.conv3 = nn.Sequential(
-            nn.Conv2d( 64, 32, 3, 1, 1),         
+            nn.Conv2d( 16,  8, 3, 1, 1),         
             nn.ReLU(),
             nn.AvgPool2d(kernel_size=2),            
         )
         self.den1= nn.Sequential(
-            nn.Linear( 32*(input_size[1]//8)*(input_size[2]//8),  output_size),
+            nn.Linear(  8*(input_size[1]//8)*(input_size[2]//8),  output_size),
             nn.Sigmoid(),
         )
     def forward(self, x):
@@ -325,17 +303,10 @@ class Discriminator(nn.Module):
         x= self.den1(x)
         return x
 class ImageDataset(Dataset):
-    def __init__(self, data, mode):
-        self.mode= mode
+    def __init__(self, data):
         self.data=data
     def __getitem__(self, i):
-        if self.mode== 'vae':
-            x=torch.FloatTensor(self.data[i][:])/255
-            y=torch.FloatTensor(self.data[i][:])/255
-            return x,y
-        elif self.mode== 'gan':
-            x=torch.FloatTensor(self.data[i][:])/255
-            return x,y
-        else: raise ValueError('Wrong mode.')
+        x=torch.FloatTensor(self.data[i][:])/255
+        return x
     def __len__(self):
         return len(self.data)
