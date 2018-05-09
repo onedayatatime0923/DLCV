@@ -293,17 +293,17 @@ class Discriminator(nn.Module):
         self.output_size=output_size
         self.conv1 = nn.Sequential(                 # input shape (1, 28, 28)
             nn.Conv2d(input_size[0], hidden_size, 4, 2, 1),              # output shape (16, 28, 28)
-            nn.BatchNorm1d(hidden_size),
+            nn.BatchNorm2d(hidden_size),
             nn.LeakyReLU(),
         )
         self.conv2 = nn.Sequential(
             nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
-            nn.BatchNorm1d(hidden_size),
+            nn.BatchNorm2d(hidden_size),
             nn.LeakyReLU(),
         )
         self.conv3 = nn.Sequential(
             nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
-            nn.BatchNorm1d(hidden_size),
+            nn.BatchNorm2d(hidden_size),
             nn.LeakyReLU(),
         )
         self.den1= nn.Sequential(
