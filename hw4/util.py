@@ -63,13 +63,13 @@ class DataManager():
             # update generator
             for j in range(self.generator_update_num):
                 output_data= torch.cat((discriminator(generator(batch_x)),discriminator(batch_y)),0)
-                output_label= torch.cat((torch.zeros(len(batch_x),1),torch.ones(len(batch_x),1)),0).cuda()
+                output_label= torch.cat((torch.ones(len(batch_x),1),torch.zeros(len(batch_x),1)),0).cuda()
                 random_index=torch.randperm(len(output_data)).cuda()
                 output_data= torch.index_select(output_data,0,random_index)
                 output_label= torch.index_select(output_label,0,random_index).detach()
                 loss = criterion(output_data,output_label)
                 generator_optimizer.zero_grad()
-                (-loss).backward()
+                loss.backward()
                 generator_optimizer.step()
                 batch_loss+= float(loss)
             batch_loss/= (self.generator_update_num+self.discriminator_update_num)
