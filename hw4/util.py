@@ -48,8 +48,8 @@ class DataManager():
             batch_y = Variable(y).cuda()
             # update discriminator
             for j in range(self.discriminator_update_num):
-                loss_gen= torch.log(discriminator(generator(batch_x)))
-                loss_dis= torch.log(1-discriminator(batch_y))
+                loss_gen= -torch.log(discriminator(generator(batch_x)))
+                loss_dis= -torch.log(1-discriminator(batch_y))
                 loss= torch.mean(loss_gen + loss_dis)
                 discriminator_optimizer.zero_grad()
                 loss.backward()
@@ -58,8 +58,8 @@ class DataManager():
 
             # update generator
             for j in range(self.generator_update_num):
-                loss_gen= torch.log(1-discriminator(generator(batch_x)))
-                loss_dis= torch.log(discriminator(batch_y))
+                loss_gen=  -torch.log(1-discriminator(generator(batch_x)))
+                loss_dis=  -torch.log(discriminator(batch_y))
                 loss= torch.mean(loss_gen + loss_dis)
                 generator_optimizer.zero_grad()
                 loss.backward()
