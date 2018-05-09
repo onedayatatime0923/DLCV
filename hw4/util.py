@@ -50,7 +50,7 @@ class DataManager():
             for j in range(self.discriminator_update_num):
                 loss_gen= torch.log(discriminator(generator(batch_x)))
                 loss_dis= torch.log(1-discriminator(batch_y))
-                loss= loss_gen + loss_dis
+                loss= torch.mean(loss_gen + loss_dis)
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
@@ -60,7 +60,7 @@ class DataManager():
             for j in range(self.generator_update_num):
                 loss_gen= torch.log(1-discriminator(generator(batch_x)))
                 loss_dis= torch.log(discriminator(batch_y))
-                loss= loss_gen + loss_dis
+                loss= torch.mean(loss_gen + loss_dis)
                 generator_optimizer.zero_grad()
                 loss.backward()
                 generator_optimizer.step()
@@ -280,7 +280,7 @@ class Generator(nn.Module):
         )
     def forward(self, x):
         x= self.den1(x)
-        x = x.view(x.size(0),32,(self.output_size[1]//8), (self.output_size[2]//8))
+        x = x.view(x.size(0),self.hidden_size,(self.output_size[1]//8), (self.output_size[2]//8))
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
