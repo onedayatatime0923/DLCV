@@ -4,10 +4,10 @@ import torch
 assert DataManager and Encoder and Generator and Discriminator
 
 
-BATCH_SIZE= 128
+BATCH_SIZE= 256
 EPOCHS= 100
-LATENT_DIM=  16
-HIDDEN_SIZE =  16
+LATENT_DIM= 512
+HIDDEN_SIZE = 512
 DISCRIMINATOR_UPDATE_NUM= 1
 GENERATOR_UPDATE_NUM= 1
 OUTPUT_DIR= './data/gan'
