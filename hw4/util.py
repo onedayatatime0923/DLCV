@@ -10,7 +10,7 @@ import time, os, math
 assert torch and nn and Variable and F and Dataset and DataLoader
 assert time and np
 
-torch.manual_seed(923)
+torch.manual_seed(510)
 
 class DataManager():
     def __init__(self,latent_dim=0, discriminator_update_num=0, generator_update_num=0):
@@ -30,7 +30,7 @@ class DataManager():
         x=np.array(x)
         self.data[name]=DataLoader(ImageDataset(x ),batch_size=batch_size, shuffle=shuffle)
         return x.shape[1:]
-    def train_gan(self,name, generator, discriminator, optimizer, epoch, print_every=5):
+    def train_gan(self,name, generator, discriminator, optimizer, epoch, print_every=2):
         start= time.time()
         generator.train()
         discriminator.train()
@@ -38,8 +38,8 @@ class DataManager():
         generator_optimizer= optimizer[0]
         discriminator_optimizer= optimizer[1]
         
-        total_loss= 0
-        batch_loss= 0
+        total_loss= [0,0]
+        batch_loss= [0,0]
         
         data_size= len(self.data[name].dataset)
         for i, y in enumerate(self.data[name]):
@@ -48,35 +48,36 @@ class DataManager():
             batch_y = Variable(y).cuda()
             # update discriminator
             for j in range(self.discriminator_update_num):
-                loss_gen= -torch.log(discriminator(generator(batch_x)))
-                loss_dis= -torch.log(1-discriminator(batch_y))
+                loss_gen= -torch.log(1-discriminator(generator(batch_x)))
+                loss_dis= -torch.log(discriminator(batch_y))
                 loss= torch.mean(loss_gen + loss_dis)
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
-                batch_loss+= float(loss)
+                batch_loss[0]+= float(loss)
+                #print(float(loss))
 
             # update generator
             for j in range(self.generator_update_num):
-                loss_gen=  -torch.log(1-discriminator(generator(batch_x)))
-                loss_dis=  -torch.log(discriminator(batch_y))
-                loss= torch.mean(loss_gen + loss_dis)
+                loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
                 loss.backward()
                 generator_optimizer.step()
-                batch_loss+= float(loss)
-            batch_loss/= (self.generator_update_num+self.discriminator_update_num)
+                batch_loss[1]+= float(loss)
+                #print(float(loss))
 
             if batch_index% print_every == 0:
-                print_loss= batch_loss / print_every
-                total_loss+= batch_loss
-                batch_loss= 0
-                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] |  Loss: {:.6f} | Time: {}  '.format(
+                total_loss[0]+= batch_loss[0]/ (self.discriminator_update_num )
+                total_loss[1]+= batch_loss[1]/ (self.generator_update_num )
+                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | G Loss: {:.6f} | D Loss: {:.6f} | Time: {}  '.format(
                                 epoch , batch_index*len(batch_x), data_size, 
-                                100. * batch_index*len(batch_x)/ data_size, float(print_loss),
+                                100. * batch_index*len(batch_x)/ data_size,
+                                batch_loss[1]/ (self.generator_update_num *print_every),
+                                batch_loss[0]/ (self.discriminator_update_num *print_every),
                                 self.timeSince(start, batch_index*len(batch_x)/ data_size)),end='')
-        print('\nTime: {} | Total  Loss: {:.6f}   '.format(self.timeSince(start,1),
-                    float(total_loss)/batch_index))
+                batch_loss= [0,0]
+        print('\nTime: {} | G Loss: {:.6f} | D Loss: {:.6f} |  '.format(self.timeSince(start,1),
+                    float(total_loss[1])/batch_index,float(total_loss[0])/batch_index))
         print('-'*80)
     def val_gan(self, generator, discriminator, n=5, path=None):
         generator.eval()
@@ -258,32 +259,57 @@ class Generator(nn.Module):
         self.input_size=input_size
         self.hidden_size=hidden_size
         self.output_size=output_size
-        self.den1= nn.Sequential(
-            nn.Linear(input_size, (output_size[1]//8)* (output_size[2]//8) *hidden_size),
-            nn.BatchNorm1d((output_size[1]//8)*(output_size[2]//8) *hidden_size),
-            nn.ReLU(),
-        )
+        self.compress=1
         self.conv1 = nn.Sequential(                 # input shape (1, 28, 28)
             nn.ConvTranspose2d(hidden_size, hidden_size, 4, stride=2, padding=1),# output shape (16, 28, 28)
             nn.BatchNorm2d(hidden_size),
             nn.ReLU(),
         )
+        self.compress*=2
         self.conv2 = nn.Sequential(
             nn.ConvTranspose2d( hidden_size, hidden_size ,4, stride=2, padding=1),# output shape (16, 28, 28)
             nn.BatchNorm2d(hidden_size),
             nn.ReLU(),
         )
+        self.compress*=2
         self.conv3 = nn.Sequential(
+            nn.ConvTranspose2d( hidden_size, hidden_size ,4, stride=2, padding=1),# output shape (16, 28, 28)
+            nn.BatchNorm2d(hidden_size),
+            nn.ReLU(),
+        )
+        self.compress*=2
+        self.conv4 = nn.Sequential(
+            nn.ConvTranspose2d( hidden_size, hidden_size ,4, stride=2, padding=1),# output shape (16, 28, 28)
+            nn.BatchNorm2d(hidden_size),
+            nn.ReLU(),
+        )
+        self.compress*=2
+        self.conv5 = nn.Sequential(
+            nn.ConvTranspose2d( hidden_size, hidden_size ,4, stride=2, padding=1),# output shape (16, 28, 28)
+            nn.BatchNorm2d(hidden_size),
+            nn.ReLU(),
+        )
+        self.compress*=2
+        self.conv6 = nn.Sequential(
             nn.ConvTranspose2d( hidden_size, output_size[0],4, stride=2, padding=1),# output shape (16, 28, 28)
             nn.BatchNorm2d( output_size[0]),
             nn.Tanh(),
         )
+        self.compress*=2
+        self.den1= nn.Sequential(
+            nn.Linear(input_size, (output_size[1]// self.compress)* (output_size[2]// self.compress) *hidden_size),
+            nn.BatchNorm1d((output_size[1]//self.compress)*(output_size[2]//self.compress) *hidden_size),
+            nn.ReLU(),
+        )
     def forward(self, x):
         x= self.den1(x)
-        x = x.view(x.size(0),self.hidden_size,(self.output_size[1]//8), (self.output_size[2]//8))
+        x = x.view(x.size(0),self.hidden_size,(self.output_size[1]//self.compress), (self.output_size[2]//self.compress))
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
+        x = self.conv4(x)
+        x = self.conv5(x)
+        x = self.conv6(x)
         return x 
 class Discriminator(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
@@ -291,23 +317,27 @@ class Discriminator(nn.Module):
         self.input_size=input_size
         self.hidden_size=hidden_size
         self.output_size=output_size
+        self.compress=1
         self.conv1 = nn.Sequential(                 # input shape (1, 28, 28)
-            nn.Conv2d(input_size[0], hidden_size, 4, 2, 1),              # output shape (16, 28, 28)
+            nn.Conv2d(input_size[0], hidden_size, 8, 4, 2),              # output shape (16, 28, 28)
             nn.BatchNorm2d(hidden_size),
             nn.LeakyReLU(),
         )
+        self.compress*=4
         self.conv2 = nn.Sequential(
-            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
+            nn.Conv2d( hidden_size, hidden_size, 8, 4, 2),         
             nn.BatchNorm2d(hidden_size),
             nn.LeakyReLU(),
         )
+        self.compress*=4
         self.conv3 = nn.Sequential(
-            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
+            nn.Conv2d( hidden_size, hidden_size, 8, 4, 2),         
             nn.BatchNorm2d(hidden_size),
             nn.LeakyReLU(),
         )
+        self.compress*=4
         self.den1= nn.Sequential(
-            nn.Linear(  hidden_size*(input_size[1]//8)*(input_size[2]//8),  output_size),
+            nn.Linear(  hidden_size*(input_size[1]// self.compress)*(input_size[2]//self.compress),  output_size),
             nn.BatchNorm1d(output_size),
             nn.Sigmoid(),
         )

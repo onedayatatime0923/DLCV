@@ -20,6 +20,9 @@ data_shape=train_shape
 
 encoder= Encoder(data_shape, HIDDEN_SIZE, LATENT_DIM).cuda()
 decoder= Decoder(LATENT_DIM, HIDDEN_SIZE, data_shape).cuda()
+print(encoder)
+print(decoder)
+input()
 optimizer= [torch.optim.Adam(encoder.parameters()), torch.optim.Adam(decoder.parameters())]
 
 record=1
