@@ -79,7 +79,7 @@ class DataManager():
         print('\nTime: {} | G Loss: {:.6f} | D Loss: {:.6f} |  '.format(self.timeSince(start,1),
                     float(total_loss[1])/batch_index,float(total_loss[0])/batch_index))
         print('-'*80)
-    def val_gan(self, generator, discriminator, n=5, path=None):
+    def val_gan(self, generator, discriminator, n=20, path=None):
         generator.eval()
         discriminator.eval()
         
