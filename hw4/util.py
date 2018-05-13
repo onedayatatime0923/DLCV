@@ -38,7 +38,7 @@ class DataManager():
         generator_optimizer= optimizer[0]
         discriminator_optimizer= optimizer[1]
         
-        #criterion= torch.nn.BCELoss()
+        criterion= torch.nn.BCELoss()
         total_loss= [0,0]
         batch_loss= [0,0]
         
@@ -49,10 +49,10 @@ class DataManager():
             # update discriminator
             for j in range(self.discriminator_update_num):
                 batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
-                #loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1).cuda()))
-                #loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
-                loss_gen= torch.mean( -torch.log(1-discriminator(generator(batch_x))))
-                loss_dis= torch.mean( -torch.log(discriminator(batch_y)))
+                loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1).cuda()))
+                loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
+                #loss_gen= torch.mean( -torch.log(1-discriminator(generator(batch_x))))
+                #loss_dis= torch.mean( -torch.log(discriminator(batch_y)))
                 loss= (loss_gen + loss_dis)
                 discriminator_optimizer.zero_grad()
                 loss.backward()
@@ -63,8 +63,8 @@ class DataManager():
             # update generator
             for j in range(self.generator_update_num):
                 batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
-                #loss= criterion(discriminator(generator(batch_x)),Variable(torch.ones(len(y),1).cuda()))
-                loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
+                loss= criterion(discriminator(generator(batch_x)),Variable(torch.ones(len(y),1).cuda()))
+                #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
                 loss.backward()
                 generator_optimizer.step()
