@@ -4,7 +4,7 @@ import torch
 assert DataManager and Encoder and Generator and Discriminator
 
 
-BATCH_SIZE=  128
+BATCH_SIZE=  256
 EPOCHS= 100
 LATENT_DIM= 128
 GENERATOR_HIDDEN_CHANNEL =1024
