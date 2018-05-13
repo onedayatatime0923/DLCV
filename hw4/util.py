@@ -325,7 +325,7 @@ class Discriminator(nn.Module):
         for v in cfg:
             conv2d = nn.Conv2d( in_channels, v[0], kernel_size=2+v[1], stride=v[1], padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v[0]),nn.BatchNorm2d(v[0]),nn.LeakyReLU(0.2)]
+                layers += [conv2d, nn.BatchNorm2d(v[0]),nn.LeakyReLU(0.2)]
             else:
                 layers += [conv2d, nn.LeakyReLU(0.2)]
             in_channels = v[0]
