@@ -38,19 +38,24 @@ class DataManager():
         generator_optimizer= optimizer[0]
         discriminator_optimizer= optimizer[1]
         
+        criterion= torch.nn.BCELoss()
         total_loss= [0,0]
         batch_loss= [0,0]
         
         data_size= len(self.data[name].dataset)
         for i, y in enumerate(self.data[name]):
             batch_index=i+1
-            batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
             batch_y = Variable(y).cuda()
             # update discriminator
             for j in range(self.discriminator_update_num):
+                batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
+                loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1).cuda()))
+                loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
+                '''
                 loss_gen= -torch.log(1-discriminator(generator(batch_x)))
                 loss_dis= -torch.log(discriminator(batch_y))
-                loss= torch.mean(loss_gen + loss_dis)
+                '''
+                loss= (loss_gen + loss_dis)
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
@@ -59,9 +64,11 @@ class DataManager():
 
             # update generator
             for j in range(self.generator_update_num):
-                loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
+                batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
+                loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.ones(len(y),1).cuda()))
+                #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
-                loss.backward()
+                loss_gen.backward()
                 generator_optimizer.step()
                 batch_loss[1]+= float(loss)
                 #print(float(loss))
@@ -276,21 +283,27 @@ class Generator(nn.Module):
         layers = []
         in_channels = input_channel
         extend=1
-        for v in cfg:
+        for v in cfg[:-1]:
             conv2d = nn.ConvTranspose2d( in_channels, v[0], kernel_size=2+v[1], stride=v[1], padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v[0]), nn.ReLU(inplace=True)]
+                layers += [conv2d, nn.BatchNorm2d(v[0]), nn.ReLU()]
             else:
-                layers += [conv2d, nn.ReLU(inplace=True)]
+                layers += [conv2d, nn.ReLU()]
             in_channels = v[0]
             extend*=v[1]
+        conv2d = nn.ConvTranspose2d( in_channels, cfg[-1][0], kernel_size=2+cfg[-1][1], stride=cfg[-1][1], padding=1)
+        if batch_norm:
+            layers += [conv2d, nn.BatchNorm2d(cfg[-1][0]), nn.Tanh()]
+        else:
+            layers += [conv2d, nn.Tanh()]
+        extend*=cfg[-1][1]
         return nn.Sequential(*layers), extend
 class Discriminator(nn.Module):
     def __init__(self, input_size, cfg, output_size):
         super(Discriminator, self).__init__()
         self.input_size=input_size
         self.hidden_channel= cfg[-1][0]
-        self.discriminator, self.compress= self.make_layers(input_size[0],cfg)
+        self.discriminator, self.compress= self.make_layers(input_size[0],cfg, batch_norm=True)
         self.output_size=output_size
         self.den1= nn.Sequential(
             nn.Linear(  cfg[-1][0]*(input_size[1]// self.compress)*(input_size[2]//self.compress),  4096),
@@ -316,9 +329,9 @@ class Discriminator(nn.Module):
         for v in cfg:
             conv2d = nn.Conv2d( in_channels, v[0], kernel_size=2+v[1], stride=v[1], padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v[0]), nn.LeakyReLU(inplace=True)]
+                layers += [conv2d, nn.BatchNorm2d(v[0]), nn.LeakyReLU()]
             else:
-                layers += [conv2d, nn.LeakyReLU(inplace=True)]
+                layers += [conv2d, nn.LeakyReLU()]
             in_channels = v[0]
             compress*=v[1]
         return nn.Sequential(*layers), compress
