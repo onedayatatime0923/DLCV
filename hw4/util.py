@@ -30,7 +30,7 @@ class DataManager():
         x=np.array(x)
         self.data[name]=DataLoader(ImageDataset(x ),batch_size=batch_size, shuffle=shuffle)
         return x.shape[1:]
-    def train_gan(self,name, generator, discriminator, optimizer, epoch, print_every=2):
+    def train_gan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
         start= time.time()
         generator.train()
         discriminator.train()
@@ -67,13 +67,13 @@ class DataManager():
                 #print(float(loss))
 
             if batch_index% print_every == 0:
-                total_loss[0]+= batch_loss[0]/ (self.discriminator_update_num )
-                total_loss[1]+= batch_loss[1]/ (self.generator_update_num )
+                total_loss[0]+= batch_loss[0]/ (self.discriminator_update_num ) if (self.discriminator_update_num!=0) else 0
+                total_loss[1]+= batch_loss[1]/ (self.generator_update_num ) if (self.generator_update_num!=0) else 0
                 print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | G Loss: {:.6f} | D Loss: {:.6f} | Time: {}  '.format(
                                 epoch , batch_index*len(batch_x), data_size, 
                                 100. * batch_index*len(batch_x)/ data_size,
-                                batch_loss[1]/ (self.generator_update_num *print_every),
-                                batch_loss[0]/ (self.discriminator_update_num *print_every),
+                                batch_loss[1]/ (self.generator_update_num *print_every) if (self.generator_update_num!=0) else 0,
+                                batch_loss[0]/ (self.discriminator_update_num *print_every)if (self.discriminator_update_num!=0) else 0,
                                 self.timeSince(start, batch_index*len(batch_x)/ data_size)),end='')
                 batch_loss= [0,0]
         print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Total G Loss: {:.6f} | Total D Loss: {:.6f} | Time: {}  '.format(
@@ -357,7 +357,12 @@ class Discriminator(nn.Module):
         )
         self.compress*=2
         self.den1= nn.Sequential(
-            nn.Linear(  hidden_size*(input_size[1]// self.compress)*(input_size[2]//self.compress),  output_size),
+            nn.Linear(  hidden_size*(input_size[1]// self.compress)*(input_size[2]//self.compress),  4096),
+            nn.BatchNorm1d( 4096),
+            nn.LeakyReLU(),
+        )
+        self.den2= nn.Sequential(
+            nn.Linear(  4096, output_size),
             nn.BatchNorm1d(output_size),
             nn.Sigmoid(),
         )
@@ -370,6 +375,7 @@ class Discriminator(nn.Module):
         x = self.conv6(x)
         x = x.view(x.size(0), -1)
         x= self.den1(x)
+        x= self.den2(x)
         return x
 class ImageDataset(Dataset):
     def __init__(self, data):
