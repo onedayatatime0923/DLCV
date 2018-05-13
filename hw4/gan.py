@@ -7,18 +7,19 @@ assert DataManager and Encoder and Generator and Discriminator
 BATCH_SIZE=  800
 EPOCHS= 100
 LATENT_DIM=  64
-GENERATOR_HIDDEN_SIZE =  64
-DISCRIMINATOR_HIDDEN_SIZE = 128
-DISCRIMINATOR_UPDATE_NUM= 8
+GENERATOR_HIDDEN_CHANNEL = 2048
+GENERATOR_CFG = [(64,2),(64,2),(128,2),(3,2)]
+DISCRIMINATOR_CFG = [(128,2),(128,2),(64,2),(64,2)]
 GENERATOR_UPDATE_NUM= 0
+DISCRIMINATOR_UPDATE_NUM= 8
 OUTPUT_DIR= './data/gan'
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
 train_shape=dm.get_data('train',['./data/train','./data/test'],BATCH_SIZE, shuffle=True)
 data_shape=train_shape
 
-generator= Generator(LATENT_DIM, GENERATOR_HIDDEN_SIZE, data_shape).cuda()
-discriminator= Discriminator(data_shape,DISCRIMINATOR_HIDDEN_SIZE, 1).cuda()
+generator= Generator(LATENT_DIM, GENERATOR_HIDDEN_CHANNEL, GENERATOR_CFG, data_shape).cuda()
+discriminator= Discriminator(data_shape,DISCRIMINATOR_CFG, 1).cuda()
 print(generator)
 print(discriminator)
 optimizer= [torch.optim.Adam(generator.parameters()), torch.optim.Adam(discriminator.parameters())]
