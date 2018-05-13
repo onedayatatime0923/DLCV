@@ -53,7 +53,7 @@ class DataManager():
                 loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
                 #loss_gen= -torch.log(1-discriminator(generator(batch_x)))
                 #loss_dis= -torch.log(discriminator(batch_y))
-                loss= torch.mean(loss_gen + loss_dis)
+                loss= (loss_gen + loss_dis)
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
