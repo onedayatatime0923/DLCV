@@ -18,17 +18,17 @@ class DataManager():
         self.latent_dim= latent_dim
         self.discriminator_update_num= discriminator_update_num
         self.generator_update_num= generator_update_num
-    def get_data(self,name,path,batch_size, shuffle):
+    def get_data(self,name,path,mode,batch_size, shuffle):
         x=[]
         for p in path:
             file_list = [file for file in os.listdir(p) if file.endswith('.png')]
             file_list.sort()
-            for i in range(len(file_list)):
-                x.append(np.array(Image.open('{}/{}'.format(p,file_list[i])),dtype=np.uint8).transpose((2,0,1)))
-                print('\rreading {} data...{}'.format(name,i),end='')
+            for i in file_list:
+                x.append(np.array(Image.open('{}/{}'.format(p,i)),dtype=np.uint8).transpose((2,0,1)))
+                print('\rreading {} data...{}'.format(name,len(x)),end='')
         print('\rreading {} data...finish'.format(name))
         x=np.array(x)
-        self.data[name]=DataLoader(ImageDataset(x ),batch_size=batch_size, shuffle=shuffle)
+        self.data[name]=DataLoader(ImageDataset(x,mode),batch_size=batch_size, shuffle=shuffle)
         return x.shape[1:]
     def train_gan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
         start= time.time()
@@ -49,11 +49,13 @@ class DataManager():
             # update discriminator
             for j in range(self.discriminator_update_num):
                 batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
-                loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1).cuda()))
-                loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
+                batch_Dx = torch.cat((generator(batch_x),batch_y),0)
+                batch_Dy = Variable(torch.cat((torch.zeros(len(y),1),torch.ones(len(y),1)),0).cuda())
+                #loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1).cuda()))
+                #loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
                 #loss_gen= torch.mean( -torch.log(1-discriminator(generator(batch_x))))
                 #loss_dis= torch.mean( -torch.log(discriminator(batch_y)))
-                loss= (loss_gen + loss_dis)
+                loss= criterion(discriminator(batch_Dx),batch_Dy)
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
@@ -63,7 +65,9 @@ class DataManager():
             # update generator
             for j in range(self.generator_update_num):
                 batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
-                loss= criterion(discriminator(generator(batch_x)),Variable(torch.ones(len(y),1).cuda()))
+                batch_Dx = torch.cat((generator(batch_x),batch_y),0)
+                batch_Dy = Variable(torch.cat((torch.zeros(len(y),1),torch.ones(len(y),1)),0).cuda())
+                loss= criterion(discriminator(batch_Dx),batch_Dy)
                 #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
                 loss.backward()
@@ -266,16 +270,15 @@ class Generator(nn.Module):
         self.input_size=input_size
         self.hidden_channel= hidden_channel
         self.output_size=output_size
-        self.generator , self.extend= self.make_layers(hidden_channel, cfg, batch_norm=False)
+        self.generator , self.extend= self.make_layers(hidden_channel, cfg, batch_norm=True)
         self.den= nn.Sequential(
             nn.Linear(self.input_size, (self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
-            #nn.BatchNorm1d((self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
+            nn.BatchNorm1d((self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
             nn.ReLU())
     def forward(self, x):
         x= self.den(x)
         x = x.view(x.size(0),self.hidden_channel,(self.output_size[1]//self.extend), (self.output_size[2]//self.extend))
         x = self.generator(x)
-        x = (x+1)/2
         return x 
     def make_layers(self, input_channel, cfg,  batch_norm=False):
         #cfg = [(64,2), (64,2)]
@@ -302,10 +305,11 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.input_size=input_size
         self.hidden_channel= cfg[-1][0]
-        self.discriminator, self.compress= self.make_layers(input_size[0],cfg, batch_norm=False)
+        self.discriminator, self.compress= self.make_layers(input_size[0],cfg, batch_norm=True)
         self.output_size=output_size
         self.den1= nn.Sequential(
             nn.Linear(  cfg[-1][0]*(input_size[1]// self.compress)*(input_size[2]//self.compress),  output_size),
+            nn.BatchNorm1d( output_size),
             nn.Sigmoid(),
         )
     def forward(self, x):
@@ -321,17 +325,22 @@ class Discriminator(nn.Module):
         for v in cfg:
             conv2d = nn.Conv2d( in_channels, v[0], kernel_size=2+v[1], stride=v[1], padding=1)
             if batch_norm:
-                layers += [conv2d, nn.BatchNorm2d(v[0]), nn.LeakyReLU()]
+                layers += [conv2d, nn.BatchNorm2d(v[0]),nn.BatchNorm2d(v[0]),nn.LeakyReLU(0.2)]
             else:
-                layers += [conv2d, nn.LeakyReLU()]
+                layers += [conv2d, nn.LeakyReLU(0.2)]
             in_channels = v[0]
             compress*=v[1]
         return nn.Sequential(*layers), compress
 class ImageDataset(Dataset):
-    def __init__(self, data):
+    def __init__(self, data, mode):
         self.data=data
+        self.mode= mode
     def __getitem__(self, i):
-        x=torch.FloatTensor(self.data[i][:])/255
+        if self.mode=='vae':
+            x=torch.FloatTensor(self.data[i][:])/255
+        elif self.mode=='gan':
+            x=torch.FloatTensor(self.data[i][:])/255
+        else: raise ValueError('Wrong mode.')
         return x
     def __len__(self):
         return len(self.data)

@@ -9,13 +9,13 @@ EPOCHS= 100
 LATENT_DIM= 128
 GENERATOR_HIDDEN_CHANNEL =1024
 GENERATOR_CFG = [(512,2),(256,2),(128,2),( 64,2),(3,2)]
-DISCRIMINATOR_CFG = [(512,2),( 512,2), (1024,2), (1024,2), (1024,2)]
+DISCRIMINATOR_CFG = [( 64,2),( 128,2), ( 256,2), ( 512,2), (1024,2)]
 GENERATOR_UPDATE_NUM= 1
 DISCRIMINATOR_UPDATE_NUM= 1
 OUTPUT_DIR= './data/gan'
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
-train_shape=dm.get_data('train',['./data/train','./data/test'],BATCH_SIZE, shuffle=True)
+train_shape=dm.get_data('train',['./data/train','./data/test'],mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)
 data_shape=train_shape
 
 generator= Generator(LATENT_DIM, GENERATOR_HIDDEN_CHANNEL, GENERATOR_CFG, data_shape).cuda()
@@ -27,4 +27,4 @@ optimizer= [torch.optim.Adam(generator.parameters()), torch.optim.Adam(discrimin
 record=1
 for epoch in range(1,EPOCHS+1):
     dm.train_gan('train', generator, discriminator, optimizer, epoch, print_every=5)
-    dm.val_gan(generator, discriminator, n=5, path=OUTPUT_DIR)
+    dm.val_gan(generator, discriminator, n=10, path=OUTPUT_DIR)
