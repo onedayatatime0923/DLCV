@@ -50,12 +50,12 @@ class DataManager():
             for j in range(self.discriminator_update_num):
                 batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
                 loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1).cuda()))
+                print(loss_gen)
                 loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
-                '''
-                loss_gen= -torch.log(1-discriminator(generator(batch_x)))
-                loss_dis= -torch.log(discriminator(batch_y))
-                '''
-                loss= (loss_gen + loss_dis)
+                print(loss_dis)
+                #loss_gen= -torch.log(1-discriminator(generator(batch_x)))
+                #loss_dis= -torch.log(discriminator(batch_y))
+                loss= torch.mean(loss_gen + loss_dis)
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
@@ -65,10 +65,10 @@ class DataManager():
             # update generator
             for j in range(self.generator_update_num):
                 batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
-                loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.ones(len(y),1).cuda()))
+                loss= criterion(discriminator(generator(batch_x)),Variable(torch.ones(len(y),1).cuda()))
                 #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
-                loss_gen.backward()
+                loss.backward()
                 generator_optimizer.step()
                 batch_loss[1]+= float(loss)
                 #print(float(loss))
@@ -271,12 +271,13 @@ class Generator(nn.Module):
         self.generator , self.extend= self.make_layers(hidden_channel, cfg)
         self.den= nn.Sequential(
             nn.Linear(self.input_size, (self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
-            nn.BatchNorm1d((self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
-            nn.Sigmoid())
+            #nn.BatchNorm1d((self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
+            nn.ReLU())
     def forward(self, x):
         x= self.den(x)
         x = x.view(x.size(0),self.hidden_channel,(self.output_size[1]//self.extend), (self.output_size[2]//self.extend))
         x = self.generator(x)
+        x = (x+1)/2
         return x 
     def make_layers(self, input_channel, cfg,  batch_norm=False):
         #cfg = [(64,2), (64,2)]
@@ -303,16 +304,14 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.input_size=input_size
         self.hidden_channel= cfg[-1][0]
-        self.discriminator, self.compress= self.make_layers(input_size[0],cfg, batch_norm=True)
+        self.discriminator, self.compress= self.make_layers(input_size[0],cfg, batch_norm=False)
         self.output_size=output_size
         self.den1= nn.Sequential(
             nn.Linear(  cfg[-1][0]*(input_size[1]// self.compress)*(input_size[2]//self.compress),  4096),
-            nn.BatchNorm1d( 4096),
             nn.LeakyReLU(),
         )
         self.den2= nn.Sequential(
             nn.Linear(  4096, output_size),
-            nn.BatchNorm1d(output_size),
             nn.Sigmoid(),
         )
     def forward(self, x):
