@@ -38,19 +38,24 @@ class DataManager():
         generator_optimizer= optimizer[0]
         discriminator_optimizer= optimizer[1]
         
+        criterion= torch.nn.BCELoss()
         total_loss= [0,0]
         batch_loss= [0,0]
         
         data_size= len(self.data[name].dataset)
         for i, y in enumerate(self.data[name]):
             batch_index=i+1
-            batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
             batch_y = Variable(y).cuda()
             # update discriminator
             for j in range(self.discriminator_update_num):
+                batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
+                loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1).cuda()))
+                loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
+                '''
                 loss_gen= -torch.log(1-discriminator(generator(batch_x)))
                 loss_dis= -torch.log(discriminator(batch_y))
-                loss= torch.mean(loss_gen + loss_dis)
+                '''
+                loss= (loss_gen + loss_dis)
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
@@ -59,9 +64,11 @@ class DataManager():
 
             # update generator
             for j in range(self.generator_update_num):
-                loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
+                batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
+                loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.ones(len(y),1).cuda()))
+                #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
-                loss.backward()
+                loss_gen.backward()
                 generator_optimizer.step()
                 batch_loss[1]+= float(loss)
                 #print(float(loss))
@@ -256,108 +263,50 @@ class Decoder(nn.Module):
         x = self.conv3(x)
         return x 
 class Generator(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, hidden_channel, cfg, output_size):
         super(Generator, self).__init__()
         self.input_size=input_size
-        self.hidden_size=hidden_size
+        self.hidden_channel= hidden_channel
         self.output_size=output_size
-        self.compress=1
-        self.conv1 = nn.Sequential(                 # input shape (1, 28, 28)
-            nn.ConvTranspose2d(hidden_size, hidden_size, 4, stride=2, padding=1),# output shape (16, 28, 28)
-            nn.BatchNorm2d(hidden_size),
-            nn.ReLU(),
-        )
-        self.compress*=2
-        self.conv2 = nn.Sequential(
-            nn.ConvTranspose2d( hidden_size, hidden_size ,4, stride=2, padding=1),# output shape (16, 28, 28)
-            nn.BatchNorm2d(hidden_size),
-            nn.ReLU(),
-        )
-        self.compress*=2
-        self.conv3 = nn.Sequential(
-            nn.ConvTranspose2d( hidden_size, hidden_size ,4, stride=2, padding=1),# output shape (16, 28, 28)
-            nn.BatchNorm2d(hidden_size),
-            nn.ReLU(),
-        )
-        self.compress*=2
-        self.conv4 = nn.Sequential(
-            nn.ConvTranspose2d( hidden_size, hidden_size ,4, stride=2, padding=1),# output shape (16, 28, 28)
-            nn.BatchNorm2d(hidden_size),
-            nn.ReLU(),
-        )
-        self.compress*=2
-        self.conv5 = nn.Sequential(
-            nn.ConvTranspose2d( hidden_size, hidden_size ,4, stride=2, padding=1),# output shape (16, 28, 28)
-            nn.BatchNorm2d(hidden_size),
-            nn.ReLU(),
-        )
-        self.compress*=2
-        self.conv6 = nn.Sequential(
-            nn.ConvTranspose2d( hidden_size, output_size[0],4, stride=2, padding=1),# output shape (16, 28, 28)
-            nn.BatchNorm2d( output_size[0]),
-            nn.Tanh(),
-        )
-        self.compress*=2
-        self.den1= nn.Sequential(
-            nn.Linear(input_size, (output_size[1]// self.compress)* (output_size[2]// self.compress) *hidden_size),
-            nn.BatchNorm1d((output_size[1]//self.compress)*(output_size[2]//self.compress) *hidden_size),
-            nn.ReLU(),
-        )
+        self.generator , self.extend= self.make_layers(hidden_channel, cfg)
+        self.den= nn.Sequential(
+            nn.Linear(self.input_size, (self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
+            nn.BatchNorm1d((self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
+            nn.Sigmoid())
     def forward(self, x):
-        x= self.den1(x)
-        x = x.view(x.size(0),self.hidden_size,(self.output_size[1]//self.compress), (self.output_size[2]//self.compress))
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = self.conv5(x)
-        x = self.conv6(x)
+        x= self.den(x)
+        x = x.view(x.size(0),self.hidden_channel,(self.output_size[1]//self.extend), (self.output_size[2]//self.extend))
+        x = self.generator(x)
         return x 
+    def make_layers(self, input_channel, cfg,  batch_norm=False):
+        #cfg = [(64,2), (64,2)]
+        layers = []
+        in_channels = input_channel
+        extend=1
+        for v in cfg[:-1]:
+            conv2d = nn.ConvTranspose2d( in_channels, v[0], kernel_size=2+v[1], stride=v[1], padding=1)
+            if batch_norm:
+                layers += [conv2d, nn.BatchNorm2d(v[0]), nn.ReLU()]
+            else:
+                layers += [conv2d, nn.ReLU()]
+            in_channels = v[0]
+            extend*=v[1]
+        conv2d = nn.ConvTranspose2d( in_channels, cfg[-1][0], kernel_size=2+cfg[-1][1], stride=cfg[-1][1], padding=1)
+        if batch_norm:
+            layers += [conv2d, nn.BatchNorm2d(cfg[-1][0]), nn.Tanh()]
+        else:
+            layers += [conv2d, nn.Tanh()]
+        extend*=cfg[-1][1]
+        return nn.Sequential(*layers), extend
 class Discriminator(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, input_size, cfg, output_size):
         super(Discriminator, self).__init__()
         self.input_size=input_size
-        self.hidden_size=hidden_size
+        self.hidden_channel= cfg[-1][0]
+        self.discriminator, self.compress= self.make_layers(input_size[0],cfg, batch_norm=True)
         self.output_size=output_size
-        self.compress=1
-        self.conv1 = nn.Sequential(                 # input shape (1, 28, 28)
-            nn.Conv2d(input_size[0], hidden_size, 4, 2, 1),              # output shape (16, 28, 28)
-            nn.BatchNorm2d(hidden_size),
-            nn.LeakyReLU(),
-        )
-        self.compress*=2
-        self.conv2 = nn.Sequential(
-            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
-            nn.BatchNorm2d(hidden_size),
-            nn.LeakyReLU(),
-        )
-        self.compress*=2
-        self.conv3 = nn.Sequential(
-            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
-            nn.BatchNorm2d(hidden_size),
-            nn.LeakyReLU(),
-        )
-        self.compress*=2
-        self.conv4 = nn.Sequential(
-            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
-            nn.BatchNorm2d(hidden_size),
-            nn.LeakyReLU(),
-        )
-        self.compress*=2
-        self.conv5 = nn.Sequential(
-            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
-            nn.BatchNorm2d(hidden_size),
-            nn.LeakyReLU(),
-        )
-        self.compress*=2
-        self.conv6 = nn.Sequential(
-            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
-            nn.BatchNorm2d(hidden_size),
-            nn.LeakyReLU(),
-        )
-        self.compress*=2
         self.den1= nn.Sequential(
-            nn.Linear(  hidden_size*(input_size[1]// self.compress)*(input_size[2]//self.compress),  4096),
+            nn.Linear(  cfg[-1][0]*(input_size[1]// self.compress)*(input_size[2]//self.compress),  4096),
             nn.BatchNorm1d( 4096),
             nn.LeakyReLU(),
         )
@@ -367,16 +316,25 @@ class Discriminator(nn.Module):
             nn.Sigmoid(),
         )
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x = self.conv4(x)
-        x = self.conv5(x)
-        x = self.conv6(x)
+        x = self.discriminator(x)
         x = x.view(x.size(0), -1)
         x= self.den1(x)
         x= self.den2(x)
         return x
+    def make_layers(self, input_channel, cfg,  batch_norm=False):
+        #cfg = [(64,2), (64,2)]
+        layers = []
+        in_channels = input_channel
+        compress=1
+        for v in cfg:
+            conv2d = nn.Conv2d( in_channels, v[0], kernel_size=2+v[1], stride=v[1], padding=1)
+            if batch_norm:
+                layers += [conv2d, nn.BatchNorm2d(v[0]), nn.LeakyReLU()]
+            else:
+                layers += [conv2d, nn.LeakyReLU()]
+            in_channels = v[0]
+            compress*=v[1]
+        return nn.Sequential(*layers), compress
 class ImageDataset(Dataset):
     def __init__(self, data):
         self.data=data
