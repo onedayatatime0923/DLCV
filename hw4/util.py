@@ -266,7 +266,7 @@ class Generator(nn.Module):
         self.input_size=input_size
         self.hidden_channel= hidden_channel
         self.output_size=output_size
-        self.generator , self.extend= self.make_layers(hidden_channel, cfg)
+        self.generator , self.extend= self.make_layers(hidden_channel, cfg, batch_norm=False)
         self.den= nn.Sequential(
             nn.Linear(self.input_size, (self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
             #nn.BatchNorm1d((self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
