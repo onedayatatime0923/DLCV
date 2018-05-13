@@ -50,9 +50,7 @@ class DataManager():
             for j in range(self.discriminator_update_num):
                 batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
                 loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1).cuda()))
-                print(loss_gen)
                 loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
-                print(loss_dis)
                 #loss_gen= -torch.log(1-discriminator(generator(batch_x)))
                 #loss_dis= -torch.log(discriminator(batch_y))
                 loss= torch.mean(loss_gen + loss_dis)
