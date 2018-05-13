@@ -265,7 +265,7 @@ class Generator(nn.Module):
         self.den= nn.Sequential(
             nn.Linear(self.input_size, (self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
             nn.BatchNorm1d((self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
-            nn.ReLU())
+            nn.Sigmoid())
     def forward(self, x):
         x= self.den(x)
         x = x.view(x.size(0),self.hidden_channel,(self.output_size[1]//self.extend), (self.output_size[2]//self.extend))
