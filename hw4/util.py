@@ -305,18 +305,13 @@ class Discriminator(nn.Module):
         self.discriminator, self.compress= self.make_layers(input_size[0],cfg, batch_norm=False)
         self.output_size=output_size
         self.den1= nn.Sequential(
-            nn.Linear(  cfg[-1][0]*(input_size[1]// self.compress)*(input_size[2]//self.compress),  4096),
-            nn.LeakyReLU(),
-        )
-        self.den2= nn.Sequential(
-            nn.Linear(  4096, output_size),
+            nn.Linear(  cfg[-1][0]*(input_size[1]// self.compress)*(input_size[2]//self.compress),  output_size),
             nn.Sigmoid(),
         )
     def forward(self, x):
         x = self.discriminator(x)
         x = x.view(x.size(0), -1)
         x= self.den1(x)
-        x= self.den2(x)
         return x
     def make_layers(self, input_channel, cfg,  batch_norm=False):
         #cfg = [(64,2), (64,2)]
