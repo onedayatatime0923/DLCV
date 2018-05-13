@@ -76,7 +76,7 @@ class DataManager():
                                 batch_loss[0]/ (self.discriminator_update_num *print_every),
                                 self.timeSince(start, batch_index*len(batch_x)/ data_size)),end='')
                 batch_loss= [0,0]
-        print('\nTrain Epoch: {} | [{}/{} ({:.0f}%)] | G Loss: {:.6f} | D Loss: {:.6f} | Time: {}  '.format(
+        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Total G Loss: {:.6f} | Total D Loss: {:.6f} | Time: {}  '.format(
                         epoch , data_size, data_size, 100. ,
                         float(total_loss[1])/batch_index,float(total_loss[0])/batch_index,
                         self.timeSince(start, 1)))
