@@ -96,7 +96,7 @@ class DataManager():
         
         batch_x = Variable(torch.normal(torch.zeros(n,self.latent_dim))).cuda()
         predict= generator(batch_x).cpu().data
-        self.write(predict,path)
+        self.write(predict,path,'gan')
     def train_vae(self,name, encoder, decoder, optimizer, epoch, kl_coefficient=5E-5, print_every=5):
         start= time.time()
         encoder.train()
@@ -176,11 +176,15 @@ class DataManager():
             self.write(predict,path)
             record=float(total_loss[0])
         return record
-    def write(self,data,path):
+    def write(self,data,path,mode):
         data=data.numpy()
         #print(output.shape)
         for i in range(data.shape[0]):
-            im=data[i].transpose((1,2,0))*255
+            if mode== 'vae':
+                im=data[i].transpose((1,2,0))*255
+            elif mode== 'gan':
+                im=(data[i].transpose((1,2,0))*128)+127
+            else: raise ValueError('Wrong mode')
             im=im.astype(np.uint8)
             image = Image.fromarray(im,'RGB')
             image.save('{}/{:0>4}.png'.format(path,i))
@@ -339,7 +343,7 @@ class ImageDataset(Dataset):
         if self.mode=='vae':
             x=torch.FloatTensor(self.data[i][:])/255
         elif self.mode=='gan':
-            x=torch.FloatTensor(self.data[i][:])/255
+            x=(torch.FloatTensor(self.data[i][:])-127)/128
         else: raise ValueError('Wrong mode.')
         return x
     def __len__(self):
