@@ -76,8 +76,10 @@ class DataManager():
                                 batch_loss[0]/ (self.discriminator_update_num *print_every),
                                 self.timeSince(start, batch_index*len(batch_x)/ data_size)),end='')
                 batch_loss= [0,0]
-        print('\nTime: {} | G Loss: {:.6f} | D Loss: {:.6f} |  '.format(self.timeSince(start,1),
-                    float(total_loss[1])/batch_index,float(total_loss[0])/batch_index))
+        print('\nTrain Epoch: {} | [{}/{} ({:.0f}%)] | G Loss: {:.6f} | D Loss: {:.6f} | Time: {}  '.format(
+                        epoch , data_size, data_size, 100. ,
+                        float(total_loss[1])/batch_index,float(total_loss[0])/batch_index,
+                        self.timeSince(start, 1)))
         print('-'*80)
     def val_gan(self, generator, discriminator, n=20, path=None):
         generator.eval()
