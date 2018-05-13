@@ -319,23 +319,41 @@ class Discriminator(nn.Module):
         self.output_size=output_size
         self.compress=1
         self.conv1 = nn.Sequential(                 # input shape (1, 28, 28)
-            nn.Conv2d(input_size[0], hidden_size, 8, 4, 2),              # output shape (16, 28, 28)
+            nn.Conv2d(input_size[0], hidden_size, 4, 2, 1),              # output shape (16, 28, 28)
             nn.BatchNorm2d(hidden_size),
             nn.LeakyReLU(),
         )
-        self.compress*=4
+        self.compress*=2
         self.conv2 = nn.Sequential(
-            nn.Conv2d( hidden_size, hidden_size, 8, 4, 2),         
+            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
             nn.BatchNorm2d(hidden_size),
             nn.LeakyReLU(),
         )
-        self.compress*=4
+        self.compress*=2
         self.conv3 = nn.Sequential(
-            nn.Conv2d( hidden_size, hidden_size, 8, 4, 2),         
+            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
             nn.BatchNorm2d(hidden_size),
             nn.LeakyReLU(),
         )
-        self.compress*=4
+        self.compress*=2
+        self.conv4 = nn.Sequential(
+            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
+            nn.BatchNorm2d(hidden_size),
+            nn.LeakyReLU(),
+        )
+        self.compress*=2
+        self.conv5 = nn.Sequential(
+            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
+            nn.BatchNorm2d(hidden_size),
+            nn.LeakyReLU(),
+        )
+        self.compress*=2
+        self.conv6 = nn.Sequential(
+            nn.Conv2d( hidden_size, hidden_size, 4, 2, 1),         
+            nn.BatchNorm2d(hidden_size),
+            nn.LeakyReLU(),
+        )
+        self.compress*=2
         self.den1= nn.Sequential(
             nn.Linear(  hidden_size*(input_size[1]// self.compress)*(input_size[2]//self.compress),  output_size),
             nn.BatchNorm1d(output_size),
@@ -345,6 +363,9 @@ class Discriminator(nn.Module):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
+        x = self.conv4(x)
+        x = self.conv5(x)
+        x = self.conv6(x)
         x = x.view(x.size(0), -1)
         x= self.den1(x)
         return x
