@@ -311,6 +311,7 @@ class Generator(nn.Module):
             nn.BatchNorm2d(128),
             nn.ReLU(True),
             nn.ConvTranspose2d(128, 3 , 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
             nn.Tanh())
     def forward(self, x):
         x = x.unsqueeze(2).unsqueeze(3)
@@ -355,6 +356,7 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(1024, 1, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(1),
             nn.Sigmoid()
         )
     def forward(self, x):
