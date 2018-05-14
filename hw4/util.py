@@ -295,18 +295,13 @@ class Decoder(nn.Module):
         x = self.conv3(x)
         return x 
 class Generator(nn.Module):
-    def __init__(self, input_size, hidden_channel, cfg, output_size):
+    def __init__(self, input_size ):
         super(Generator, self).__init__()
-        self.input_size=input_size
-        self.hidden_channel= hidden_channel
-        self.output_size=output_size
-        self.generator , self.extend= self.make_layers(hidden_channel, cfg, batch_norm=True)
-        self.den= nn.Sequential(
-            nn.Linear(self.input_size, (self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
-            nn.BatchNorm1d((self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
-            nn.ReLU())
         self.main = nn.Sequential(
-            nn.ConvTranspose2d(input_size, 512, 4, 1, 0, bias=False),
+            nn.ConvTranspose2d(input_size, 1024, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(1024, 512, 4, 2, 1, bias=False),
             nn.BatchNorm2d(512),
             nn.ReLU(True),
             nn.ConvTranspose2d(512, 256, 4, 2, 1, bias=False),
@@ -315,15 +310,9 @@ class Generator(nn.Module):
             nn.ConvTranspose2d(256, 128, 4, 2, 1, bias=False),
             nn.BatchNorm2d(128),
             nn.ReLU(True),
-            nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(64),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(64, 3, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(128, 3 , 4, 2, 1, bias=False),
             nn.Tanh())
     def forward(self, x):
-        #x= self.den(x)
-        #x = x.view(x.size(0),self.hidden_channel,(self.output_size[1]//self.extend), (self.output_size[2]//self.extend))
-        #x = self.generator(x)
         x = x.unsqueeze(2).unsqueeze(3)
         x = self.main(x)
         return x 
@@ -350,20 +339,10 @@ class Generator(nn.Module):
     def optimizer(self, lr=0.001):
         return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
 class Discriminator(nn.Module):
-    def __init__(self, input_size, cfg, output_size):
+    def __init__(self ):
         super(Discriminator, self).__init__()
-        self.input_size=input_size
-        self.hidden_channel= cfg[-1][0]
-        self.discriminator, self.compress= self.make_layers(input_size[0],cfg, batch_norm=True)
-        self.output_size=output_size
-        self.den= nn.Sequential(
-            nn.Linear(  cfg[-1][0]*(input_size[1]// self.compress)*(input_size[2]//self.compress),  output_size),
-            nn.BatchNorm1d( output_size),
-            nn.Sigmoid(),)
         self.main = nn.Sequential(
-            nn.Conv2d(3, 64, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
+            nn.Conv2d(3, 128, 4, 2, 1, bias=False),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(128, 256, 4, 2, 1, bias=False),
@@ -372,13 +351,13 @@ class Discriminator(nn.Module):
             nn.Conv2d(256, 512, 4, 2, 1, bias=False),
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(512, 1, 4, 1, 0, bias=False),
+            nn.Conv2d(512, 1024, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(1024, 1, 4, 1, 0, bias=False),
             nn.Sigmoid()
         )
     def forward(self, x):
-        #x = self.discriminator(x)
-        #x = x.view(x.size(0), -1)
-        #x= self.den(x)
         x = self.main(x)
         x = x.view(x.size(0),-1)
         return x
@@ -387,14 +366,20 @@ class Discriminator(nn.Module):
         layers = []
         in_channels = input_channel
         compress=1
-        for v in cfg:
-            conv2d = nn.Conv2d( in_channels, v[0], kernel_size=2+v[1], stride=v[1], padding=1)
+        for v in cfg[:-1]:
+            conv2d = nn.Conv2d( in_channels, v[0], kernel_size=2+v[1], stride=v[1], padding=1,bias=False)
             if batch_norm:
                 layers += [conv2d, nn.BatchNorm2d(v[0]),nn.LeakyReLU(0.2)]
             else:
                 layers += [conv2d, nn.LeakyReLU(0.2)]
             in_channels = v[0]
             compress*=v[1]
+        conv2d = nn.Conv2d( in_channels, cfg[-1][0], kernel_size=2+cfg[-1][1], stride=cfg[-1][1], padding=1,bias=False)
+        if batch_norm:
+            layers += [conv2d, nn.BatchNorm2d(cfg[-1][0]),nn.Sigmoid()]
+        else:
+            layers += [conv2d, nn.Sigmoid()]
+        compress*=cfg[-1][1]
         return nn.Sequential(*layers), compress
     def optimizer(self, lr=0.001):
         return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
