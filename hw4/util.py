@@ -65,8 +65,8 @@ class DataManager():
             # update generator
             for j in range(self.generator_update_num):
                 batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
-                batch_Dx = torch.cat((generator(batch_x),batch_y),0)
-                batch_Dy = Variable(torch.cat((torch.ones(len(y),1),torch.zeros(len(y),1)),0).cuda())
+                batch_Dx = generator(batch_x)
+                batch_Dy = Variable(torch.ones(len(y),1).cuda())
                 loss= criterion(discriminator(batch_Dx),batch_Dy)
                 #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
@@ -304,6 +304,8 @@ class Generator(nn.Module):
             layers += [conv2d, nn.Tanh()]
         extend*=cfg[-1][1]
         return nn.Sequential(*layers), extend
+    def optimizer(self, lr=0.001):
+        return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
 class Discriminator(nn.Module):
     def __init__(self, input_size, cfg, output_size):
         super(Discriminator, self).__init__()
@@ -335,6 +337,8 @@ class Discriminator(nn.Module):
             in_channels = v[0]
             compress*=v[1]
         return nn.Sequential(*layers), compress
+    def optimizer(self, lr=0.001):
+        return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
 class ImageDataset(Dataset):
     def __init__(self, data, mode):
         self.data=data
