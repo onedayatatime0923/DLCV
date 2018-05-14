@@ -26,4 +26,4 @@ print(discriminator)
 record=1
 for epoch in range(1,EPOCHS+1):
     dm.train_gan('train', generator, discriminator, optimizer, epoch, print_every=5)
-    dm.val_gan(generator, discriminator, n=10, path=OUTPUT_DIR)
+    dm.val_gan(generator, discriminator, n=30, path=OUTPUT_DIR)
