@@ -66,7 +66,7 @@ class DataManager():
             for j in range(self.generator_update_num):
                 batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
                 batch_Dx = torch.cat((generator(batch_x),batch_y),0)
-                batch_Dy = Variable(torch.cat((torch.zeros(len(y),1),torch.ones(len(y),1)),0).cuda())
+                batch_Dy = Variable(torch.cat((torch.ones(len(y),1),torch.zeros(len(y),1)),0).cuda())
                 loss= criterion(discriminator(batch_Dx),batch_Dy)
                 #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
