@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 from torch.utils.data import Dataset,DataLoader
+import torchvision
 from PIL import Image
 import numpy as np
 import time, os, math
@@ -12,7 +13,6 @@ assert torch and nn and Variable and F and Dataset and DataLoader
 assert time and np
 
 torch.manual_seed(1213)
-writer = SummaryWriter('runs/gan')
 
 class DataManager():
     def __init__(self,latent_dim=0, discriminator_update_num=0, generator_update_num=0):
@@ -20,6 +20,16 @@ class DataManager():
         self.latent_dim= latent_dim
         self.discriminator_update_num= discriminator_update_num
         self.generator_update_num= generator_update_num
+    def tb_setting(self, path):
+        for f in os.listdir(path): os.remove('{}/{}'.format(path,f))
+        self.writer = SummaryWriter(path)
+    def tb_graph(self, model, input_shape):
+        if isinstance(input_shape, tuple):
+            dummy_input= Variable( torch.rand(1, *input_shape).cuda())
+        elif isinstance(input_shape, int):
+            dummy_input= Variable( torch.rand(1, input_shape).cuda())
+        else: raise ValueError('Wrong input_shape')
+        self.writer.add_graph(nn.Sequential(*model), (dummy_input, ))
     def get_data(self,name,path,mode,batch_size, shuffle):
         x=[]
         for p in path:
@@ -113,16 +123,19 @@ class DataManager():
                         epoch , data_size, data_size, 100. ,
                         float(total_loss[1])/batch_index,float(total_loss[0])/batch_index,
                         self.timeSince(start, 1)))
-        writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
-        writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
+        self.writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
+        self.writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
         print('-'*80)
-    def val_gan(self, generator, discriminator, n=20, path=None):
+    def val_gan(self, generator, discriminator, epoch, n=20, path=None):
         generator.eval()
         discriminator.eval()
         
         batch_x = Variable(torch.randn(n,self.latent_dim).cuda())
         predict= generator(batch_x).cpu().data
         self.write(predict,path,'gan')
+
+        for i in predict:
+            self.writer.add_image('sample image result', torchvision.utils.make_grid(i), epoch)
     def train_vae(self,name, encoder, decoder, optimizer, epoch, kl_coefficient=5E-5, print_every=5):
         start= time.time()
         encoder.train()
@@ -311,7 +324,7 @@ class Generator(nn.Module):
             nn.BatchNorm2d(128),
             nn.ReLU(True),
             nn.ConvTranspose2d(128, 3 , 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
+            nn.BatchNorm2d(3),
             nn.Tanh())
     def forward(self, x):
         x = x.unsqueeze(2).unsqueeze(3)

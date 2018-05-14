@@ -14,6 +14,7 @@ DISCRIMINATOR_UPDATE_NUM= 1
 OUTPUT_DIR= './data/gan'
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
+dm.tb_setting('./runs/gan')
 train_shape=dm.get_data('train',['./data/train','./data/test'],mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)
 data_shape=train_shape
 
@@ -22,8 +23,9 @@ discriminator= Discriminator().cuda()
 optimizer= [generator.optimizer(),discriminator.optimizer()]
 print(generator)
 print(discriminator)
+dm.tb_graph((generator,discriminator), LATENT_DIM)
 
 record=1
 for epoch in range(1,EPOCHS+1):
     dm.train_gan('train', generator, discriminator, optimizer, epoch, print_every=5)
-    dm.val_gan(generator, discriminator, n=30, path=OUTPUT_DIR)
+    dm.val_gan(generator, discriminator, epoch, n=30, path=OUTPUT_DIR)
