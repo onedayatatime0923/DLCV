@@ -134,8 +134,7 @@ class DataManager():
         predict= generator(batch_x).cpu().data
         self.write(predict,path,'gan')
 
-        for i in predict:
-            self.writer.add_image('sample image result', torchvision.utils.make_grid(i), epoch)
+        self.writer.add_image('sample image result', torchvision.utils.make_grid(predict), epoch)
     def train_vae(self,name, encoder, decoder, optimizer, epoch, kl_coefficient=5E-5, print_every=5):
         start= time.time()
         encoder.train()
