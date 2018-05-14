@@ -7,10 +7,12 @@ from torch.utils.data import Dataset,DataLoader
 from PIL import Image
 import numpy as np
 import time, os, math
+from tensorboardX import SummaryWriter 
 assert torch and nn and Variable and F and Dataset and DataLoader
 assert time and np
 
 torch.manual_seed(1213)
+writer = SummaryWriter('runs/gan')
 
 class DataManager():
     def __init__(self,latent_dim=0, discriminator_update_num=0, generator_update_num=0):
@@ -48,14 +50,28 @@ class DataManager():
             batch_y = Variable(y).cuda()
             # update discriminator
             for j in range(self.discriminator_update_num):
-                batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
-                batch_Dx = torch.cat((generator(batch_x),batch_y),0)
-                batch_Dy = Variable(torch.cat((torch.zeros(len(y),1),torch.ones(len(y),1)),0).cuda())
-                #loss_gen= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1).cuda()))
-                #loss_dis= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1).cuda()))
+                batch_x = Variable(torch.randn(len(y),self.latent_dim).cuda())
                 #loss_gen= torch.mean( -torch.log(1-discriminator(generator(batch_x))))
                 #loss_dis= torch.mean( -torch.log(discriminator(batch_y)))
-                loss= criterion(discriminator(batch_Dx),batch_Dy)
+                loss_fake= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1)).cuda())
+                loss_real= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1)).cuda())
+                loss= (loss_fake + loss_real) /2
+                '''
+                if epoch== 3:
+                    self.write(generator(batch_x[: 3]).cpu().data,'./data/gan','gan')
+                    print('fake')
+                    input()
+                    self.write(batch_y[: 3].cpu().data,'./data/gan','gan')
+                    print('real')
+                    input()
+                    print(discriminator(batch_Dx[:10]))
+                    print(batch_Dy[:10])
+                    print(discriminator(batch_Dx[-10:]))
+                    print(batch_Dy[-10:])
+                    print(discriminator(batch_Dx).size())
+                    print(float(loss))
+                    input()
+                '''
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
@@ -64,10 +80,18 @@ class DataManager():
 
             # update generator
             for j in range(self.generator_update_num):
-                batch_x = Variable(torch.normal(torch.zeros(len(y),self.latent_dim))).cuda()
-                batch_Dx = generator(batch_x)
-                batch_Dy = Variable(torch.ones(len(y),1).cuda())
-                loss= criterion(discriminator(batch_Dx),batch_Dy)
+                batch_x = Variable(torch.randn(len(y),self.latent_dim).cuda())
+                loss= criterion(discriminator(generator(batch_x)),Variable(torch.ones(len(y),1)).cuda())
+                '''
+                if epoch== 3:
+                    print(discriminator(batch_Dx[:10]))
+                    print(batch_Dy[:10])
+                    print(discriminator(batch_Dx[-10:]))
+                    print(batch_Dy[-10:])
+                    print(discriminator(batch_Dx).size())
+                    print(float(loss))
+                    input()
+                '''
                 #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
                 loss.backward()
@@ -89,12 +113,14 @@ class DataManager():
                         epoch , data_size, data_size, 100. ,
                         float(total_loss[1])/batch_index,float(total_loss[0])/batch_index,
                         self.timeSince(start, 1)))
+        writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
+        writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
         print('-'*80)
     def val_gan(self, generator, discriminator, n=20, path=None):
         generator.eval()
         discriminator.eval()
         
-        batch_x = Variable(torch.normal(torch.zeros(n,self.latent_dim))).cuda()
+        batch_x = Variable(torch.randn(n,self.latent_dim).cuda())
         predict= generator(batch_x).cpu().data
         self.write(predict,path,'gan')
     def train_vae(self,name, encoder, decoder, optimizer, epoch, kl_coefficient=5E-5, print_every=5):
@@ -279,10 +305,27 @@ class Generator(nn.Module):
             nn.Linear(self.input_size, (self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
             nn.BatchNorm1d((self.output_size[1]// self.extend)* (self.output_size[2]// self.extend)* hidden_channel),
             nn.ReLU())
+        self.main = nn.Sequential(
+            nn.ConvTranspose2d(input_size, 512, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(512),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(512, 256, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(256, 128, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(128, 64, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(64, 3, 4, 2, 1, bias=False),
+            nn.Tanh())
     def forward(self, x):
-        x= self.den(x)
-        x = x.view(x.size(0),self.hidden_channel,(self.output_size[1]//self.extend), (self.output_size[2]//self.extend))
-        x = self.generator(x)
+        #x= self.den(x)
+        #x = x.view(x.size(0),self.hidden_channel,(self.output_size[1]//self.extend), (self.output_size[2]//self.extend))
+        #x = self.generator(x)
+        x = x.unsqueeze(2).unsqueeze(3)
+        x = self.main(x)
         return x 
     def make_layers(self, input_channel, cfg,  batch_norm=False):
         #cfg = [(64,2), (64,2)]
@@ -313,15 +356,31 @@ class Discriminator(nn.Module):
         self.hidden_channel= cfg[-1][0]
         self.discriminator, self.compress= self.make_layers(input_size[0],cfg, batch_norm=True)
         self.output_size=output_size
-        self.den1= nn.Sequential(
+        self.den= nn.Sequential(
             nn.Linear(  cfg[-1][0]*(input_size[1]// self.compress)*(input_size[2]//self.compress),  output_size),
             nn.BatchNorm1d( output_size),
-            nn.Sigmoid(),
+            nn.Sigmoid(),)
+        self.main = nn.Sequential(
+            nn.Conv2d(3, 64, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(256, 512, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(512, 1, 4, 1, 0, bias=False),
+            nn.Sigmoid()
         )
     def forward(self, x):
-        x = self.discriminator(x)
-        x = x.view(x.size(0), -1)
-        x= self.den1(x)
+        #x = self.discriminator(x)
+        #x = x.view(x.size(0), -1)
+        #x= self.den(x)
+        x = self.main(x)
+        x = x.view(x.size(0),-1)
         return x
     def make_layers(self, input_channel, cfg,  batch_norm=False):
         #cfg = [(64,2), (64,2)]
