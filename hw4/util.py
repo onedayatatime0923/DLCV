@@ -59,9 +59,9 @@ class DataManager():
             self.label_size= y.shape[1]
         else: y=None
         print('\rreading {} class...finish'.format(name))
-
         self.data[name]=DataLoader(ImageDataset(x, y ,mode),batch_size=batch_size, shuffle=shuffle)
-        return x.shape[1:], y.shape[1]
+        if c_path != None: return x.shape[1:]
+        else: return x.shape[1:], y.shape[1]
     def train_acgan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
         start= time.time()
         generator.train()
