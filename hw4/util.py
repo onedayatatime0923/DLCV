@@ -20,8 +20,11 @@ class DataManager():
         self.latent_dim= latent_dim
         self.discriminator_update_num= discriminator_update_num
         self.generator_update_num= generator_update_num
+        self.data_size= 0
+        self.label_size= 0
     def tb_setting(self, path):
-        for f in os.listdir(path): os.remove('{}/{}'.format(path,f))
+        for f in os.listdir(path): 
+            os.remove('{}/{}'.format(path,f))
         self.writer = SummaryWriter(path)
     def tb_graph(self, model, input_shape):
         if isinstance(input_shape, tuple):
@@ -44,13 +47,19 @@ class DataManager():
         if c_path!= None:
             for p in c_path:
                 with open(p, 'r') as f:
+                    next(f)
                     for line in f:
-                        y.append(np.array(line.split()[1:],dtype=np.uint8))
+                        data=[int(i=='1.0') for i in line.split(',')[1:]]
+                        y.append(np.array(data,dtype=np.uint8))
+                        print('\rreading {} class...{}'.format(name,len(y)),end='')
+        print('\rreading {} class...finish'.format(name))
 
         x=np.array(x)
         y=np.array(y)
         self.data[name]=DataLoader(ImageDataset(x, y ,mode),batch_size=batch_size, shuffle=shuffle)
-        return x.shape[1:], y.shape[1:]
+        self.data_size= x.shape[1:]
+        self.label_size= y.shape[1]
+        return x.shape[1:], y.shape[1]
     def train_acgan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
         start= time.time()
         generator.train()
@@ -59,8 +68,7 @@ class DataManager():
         generator_optimizer= optimizer[0]
         discriminator_optimizer= optimizer[1]
         
-        i_criterion= nn.BCELoss()
-        c_criterion= nn.MultiLabelSoftMarginLoss()
+        criterion= nn.BCELoss()
         total_loss= [0,0,0]     # G, D, C
         batch_loss= [0,0,0]     # G, D, C
         
@@ -71,15 +79,15 @@ class DataManager():
             origin_c = Variable(c).cuda()
             # update discriminator
             for k in range(self.discriminator_update_num):
-                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),origin_c),1).cuda())
+                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),c),1).cuda())
                 fake_i, fake_c= discriminator(generator(latent))
                 real_i, real_c= discriminator(origin_i)
                 zero= Variable( torch.rand(len(i),1)*0.3).cuda()
                 one= Variable( torch.rand(len(i),1)*0.5 + 0.7).cuda()
-                loss_fake_i= i_criterion( fake_i, zero)
-                loss_real_i= i_criterion( real_i, one)
-                loss_fake_c= c_criterion( fake_c, origin_c)
-                loss_real_c= c_criterion( real_c, origin_c)
+                loss_fake_i= criterion( fake_i, zero)
+                loss_real_i= criterion( real_i, one)
+                loss_fake_c= criterion( fake_c, origin_c)
+                loss_real_c= criterion( real_c, origin_c)
                 loss= (loss_fake_i + loss_fake_c + loss_real_i + loss_real_c) /4
                 '''
                 if epoch== 3:
@@ -105,11 +113,11 @@ class DataManager():
 
             # update generator
             for k in range(self.generator_update_num):
-                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),origin_c),1).cuda())
+                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),c),1).cuda())
                 fake_i, fake_c= discriminator(generator(latent))
                 one= Variable( torch.rand(len(i),1)*0.5 + 0.7).cuda()
-                loss_fake_i= i_criterion( fake_i, one)
-                loss_fake_c= c_criterion( fake_c, origin_c)
+                loss_fake_i= criterion( fake_i, one)
+                loss_fake_c= criterion( fake_c, origin_c)
                 loss= (loss_fake_i + loss_fake_c ) /2
                 '''
                 if epoch== 3:
@@ -145,6 +153,23 @@ class DataManager():
         self.writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
         self.writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
         print('-'*80)
+    def val_acgan(self, generator, discriminator, label=[0], epoch=None, n=20, path=None):
+        generator.eval()
+        discriminator.eval()
+        
+        x= torch.randn(n,self.latent_dim)
+        predict= []
+        c_no= torch.FloatTensor([[ 0 for i in range(self.label_size)]]).repeat(n,1)
+        latent_no= Variable(torch.cat((x, c_no),1).cuda())
+        predict.extend(generator(latent_no).cpu().data.unsqueeze(1))
+        for l in label:
+            c_yes= torch.FloatTensor([[ int( i == l) for i in range(self.label_size)]]).repeat(n,1)
+            latent_yes= Variable(torch.cat((x, c_yes),1).cuda())
+            predict.extend(generator(latent_yes).cpu().data.unsqueeze(1))
+
+        predict= torch.cat(predict,0)
+        self.write(predict,path,'gan')
+        self.writer.add_image('sample image result', torchvision.utils.make_grid(predict, nrow=n, normalize=True, range=(-1,1)), epoch)
     def train_gan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
         start= time.time()
         generator.train()
@@ -513,7 +538,7 @@ class Discriminator(nn.Module):
         return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
 class Discriminator_Acgan(nn.Module):
     def __init__(self, input_size, hidden_size, label_size ):
-        super(Discriminator, self).__init__()
+        super(Discriminator_Acgan, self).__init__()
         self.LeakyReLU = nn.LeakyReLU(0.2, inplace=True)
         self.conv1 = nn.Conv2d( input_size, hidden_size, 4, 2, 1, bias=False)
         self.conv2 = nn.Conv2d(hidden_size, hidden_size * 2, 4, 2, 1, bias=False)
@@ -525,27 +550,8 @@ class Discriminator_Acgan(nn.Module):
         self.conv5 = nn.Conv2d(hidden_size * 8, hidden_size * 1, 4, 1, 0, bias=False)
         self.disc_linear = nn.Linear(hidden_size * 1, 1)
         self.aux_linear = nn.Linear(hidden_size * 1, label_size)
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax(1)
         self.sigmoid = nn.Sigmoid()
-        self.main = nn.Sequential(
-            # input is (input_size) x 64 x 64
-            nn.Conv2d(input_size, hidden_size, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (hidden_size) x 32 x 32
-            nn.Conv2d(hidden_size, hidden_size * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(hidden_size * 2),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (hidden_size*2) x 16 x 16
-            nn.Conv2d(hidden_size * 2, hidden_size * 4, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(hidden_size * 4),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (hidden_size*4) x 8 x 8
-            nn.Conv2d(hidden_size * 4, hidden_size * 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(hidden_size * 8),
-            nn.LeakyReLU(0.2, inplace=True),
-            # state size. (hidden_size*8) x 4 x 4
-            nn.Conv2d(hidden_size * 8, 1, 4, 1, 0, bias=False),
-            nn.Sigmoid())
     def forward(self, x):
         x = self.conv1(x)
         x = self.LeakyReLU(x)

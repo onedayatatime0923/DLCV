@@ -23,11 +23,10 @@ discriminator= Discriminator_Acgan( data_size[0], DISCRIMINATOR_HIDDEN_CHANNEL, 
 optimizer= [generator.optimizer(),discriminator.optimizer()]
 print(generator)
 print(discriminator)
-dm.tb_graph((generator,discriminator), LATENT_DIM)
+#dm.tb_graph((generator,discriminator), LATENT_DIM)
 
-record=1
 for epoch in range(1,EPOCHS+1):
-    dm.train_gan('train', generator, discriminator, optimizer, epoch, print_every=5)
-    dm.val_gan(generator, discriminator, epoch, n=32, path=OUTPUT_DIR)
-torch.save(generator,'generator.pt')
-torch.save(discriminator,'discriminator.pt')
+    dm.train_acgan('train', generator, discriminator, optimizer, epoch, print_every=5)
+    dm.val_acgan(generator, discriminator, label=[0,1], epoch= epoch, n=10, path=OUTPUT_DIR)
+torch.save(generator,'generator_acgan.pt')
+torch.save(discriminator,'discriminator_acgan.pt')
