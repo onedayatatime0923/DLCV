@@ -16,7 +16,7 @@ TENSORBOARD_DIR= './runs/gan'
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
 dm.tb_setting(TENSORBOARD_DIR)
-train_shape=dm.get_data('train',['./data/train','./data/test'],mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)
+train_shape=dm.get_data('train',i_path=['./data/train','./data/test'],mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)
 data_shape=train_shape
 
 generator= Generator(LATENT_DIM, GENERATOR_HIDDEN_CHANNEL, data_shape[0]).cuda()

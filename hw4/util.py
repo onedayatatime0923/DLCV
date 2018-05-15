@@ -30,18 +30,121 @@ class DataManager():
             dummy_input= Variable( torch.rand(1, input_shape).cuda())
         else: raise ValueError('Wrong input_shape')
         self.writer.add_graph(nn.Sequential(*model), (dummy_input, ))
-    def get_data(self,name,path,mode,batch_size, shuffle):
+    def get_data(self,name, i_path, c_path= None, mode= 'acgan',batch_size= 128, shuffle=False):
         x=[]
-        for p in path:
+        y=[]
+        for p in i_path:
             file_list = [file for file in os.listdir(p) if file.endswith('.png')]
             file_list.sort()
             for i in file_list:
                 x.append(np.array(Image.open('{}/{}'.format(p,i)),dtype=np.uint8).transpose((2,0,1)))
-                print('\rreading {} data...{}'.format(name,len(x)),end='')
-        print('\rreading {} data...finish'.format(name))
+                print('\rreading {} image...{}'.format(name,len(x)),end='')
+        print('\rreading {} image...finish'.format(name))
+
+        if c_path!= None:
+            for p in c_path:
+                with open(p, 'r') as f:
+                    for line in f:
+                        y.append(np.array(line.split()[1:],dtype=np.uint8))
+
         x=np.array(x)
-        self.data[name]=DataLoader(ImageDataset(x,mode),batch_size=batch_size, shuffle=shuffle)
-        return x.shape[1:]
+        y=np.array(y)
+        self.data[name]=DataLoader(ImageDataset(x, y ,mode),batch_size=batch_size, shuffle=shuffle)
+        return x.shape[1:], y.shape[1:]
+    def train_acgan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
+        start= time.time()
+        generator.train()
+        discriminator.train()
+        
+        generator_optimizer= optimizer[0]
+        discriminator_optimizer= optimizer[1]
+        
+        i_criterion= nn.BCELoss()
+        c_criterion= nn.MultiLabelSoftMarginLoss()
+        total_loss= [0,0,0]     # G, D, C
+        batch_loss= [0,0,0]     # G, D, C
+        
+        data_size= len(self.data[name].dataset)
+        for j, (i, c) in enumerate(self.data[name]):
+            batch_index=j+1
+            origin_i = Variable(i).cuda()
+            origin_c = Variable(c).cuda()
+            # update discriminator
+            for k in range(self.discriminator_update_num):
+                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),origin_c),1).cuda())
+                fake_i, fake_c= discriminator(generator(latent))
+                real_i, real_c= discriminator(origin_i)
+                zero= Variable( torch.rand(len(i),1)*0.3).cuda()
+                one= Variable( torch.rand(len(i),1)*0.5 + 0.7).cuda()
+                loss_fake_i= i_criterion( fake_i, zero)
+                loss_real_i= i_criterion( real_i, one)
+                loss_fake_c= c_criterion( fake_c, origin_c)
+                loss_real_c= c_criterion( real_c, origin_c)
+                loss= (loss_fake_i + loss_fake_c + loss_real_i + loss_real_c) /4
+                '''
+                if epoch== 3:
+                    self.write(generator(batch_x[: 3]).cpu().data,'./data/gan','gan')
+                    print('fake')
+                    input()
+                    self.write(batch_y[: 3].cpu().data,'./data/gan','gan')
+                    print('real')
+                    input()
+                    print(discriminator(batch_Dx[:10]))
+                    print(batch_Dy[:10])
+                    print(discriminator(batch_Dx[-10:]))
+                    print(batch_Dy[-10:])
+                    print(discriminator(batch_Dx).size())
+                    print(float(loss))
+                    input()
+                '''
+                discriminator_optimizer.zero_grad()
+                loss.backward()
+                discriminator_optimizer.step()
+                batch_loss[0]+= float(loss)
+                #print(float(loss))
+
+            # update generator
+            for k in range(self.generator_update_num):
+                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),origin_c),1).cuda())
+                fake_i, fake_c= discriminator(generator(latent))
+                one= Variable( torch.rand(len(i),1)*0.5 + 0.7).cuda()
+                loss_fake_i= i_criterion( fake_i, one)
+                loss_fake_c= c_criterion( fake_c, origin_c)
+                loss= (loss_fake_i + loss_fake_c ) /2
+                '''
+                if epoch== 3:
+                    print(discriminator(batch_Dx[:10]))
+                    print(batch_Dy[:10])
+                    print(discriminator(batch_Dx[-10:]))
+                    print(batch_Dy[-10:])
+                    print(discriminator(batch_Dx).size())
+                    print(float(loss))
+                    input()
+                '''
+                #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
+                generator_optimizer.zero_grad()
+                loss.backward()
+                generator_optimizer.step()
+                batch_loss[1]+= float(loss)
+                #print(float(loss))
+
+            if batch_index% print_every == 0:
+                total_loss[0]+= batch_loss[0]/ (self.discriminator_update_num ) if (self.discriminator_update_num!=0) else 0
+                total_loss[1]+= batch_loss[1]/ (self.generator_update_num ) if (self.generator_update_num!=0) else 0
+                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | G Loss: {:.6f} | D Loss: {:.6f} | Time: {}  '.format(
+                                epoch , batch_index*len(i), data_size, 
+                                100. * batch_index*len(i)/ data_size,
+                                batch_loss[1]/ (self.generator_update_num *print_every) if (self.generator_update_num!=0) else 0,
+                                batch_loss[0]/ (self.discriminator_update_num *print_every)if (self.discriminator_update_num!=0) else 0,
+                                self.timeSince(start, batch_index*len(i)/ data_size)),end='')
+                batch_loss= [0,0]
+        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Total G Loss: {:.6f} | Total D Loss: {:.6f} | Time: {}  '.format(
+                        epoch , data_size, data_size, 100. ,
+                        float(total_loss[1])/batch_index,float(total_loss[0])/batch_index,
+                        self.timeSince(start, 1)))
+        self.writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
+        self.writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
+        print('-'*80)
     def train_gan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
         start= time.time()
         generator.train()
@@ -408,16 +511,102 @@ class Discriminator(nn.Module):
         return nn.Sequential(*layers), compress
     def optimizer(self, lr=0.001):
         return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
+class Discriminator_Acgan(nn.Module):
+    def __init__(self, input_size, hidden_size, label_size ):
+        super(Discriminator, self).__init__()
+        self.LeakyReLU = nn.LeakyReLU(0.2, inplace=True)
+        self.conv1 = nn.Conv2d( input_size, hidden_size, 4, 2, 1, bias=False)
+        self.conv2 = nn.Conv2d(hidden_size, hidden_size * 2, 4, 2, 1, bias=False)
+        self.BatchNorm2 = nn.BatchNorm2d(hidden_size * 2)
+        self.conv3 = nn.Conv2d(hidden_size * 2, hidden_size * 4, 4, 2, 1, bias=False)
+        self.BatchNorm3 = nn.BatchNorm2d(hidden_size * 4)
+        self.conv4 = nn.Conv2d(hidden_size * 4, hidden_size * 8, 4, 2, 1, bias=False)
+        self.BatchNorm4 = nn.BatchNorm2d(hidden_size * 8)
+        self.conv5 = nn.Conv2d(hidden_size * 8, hidden_size * 1, 4, 1, 0, bias=False)
+        self.disc_linear = nn.Linear(hidden_size * 1, 1)
+        self.aux_linear = nn.Linear(hidden_size * 1, label_size)
+        self.softmax = nn.Softmax()
+        self.sigmoid = nn.Sigmoid()
+        self.main = nn.Sequential(
+            # input is (input_size) x 64 x 64
+            nn.Conv2d(input_size, hidden_size, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (hidden_size) x 32 x 32
+            nn.Conv2d(hidden_size, hidden_size * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (hidden_size*2) x 16 x 16
+            nn.Conv2d(hidden_size * 2, hidden_size * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (hidden_size*4) x 8 x 8
+            nn.Conv2d(hidden_size * 4, hidden_size * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (hidden_size*8) x 4 x 4
+            nn.Conv2d(hidden_size * 8, 1, 4, 1, 0, bias=False),
+            nn.Sigmoid())
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.LeakyReLU(x)
+
+        x = self.conv2(x)
+        x = self.BatchNorm2(x)
+        x = self.LeakyReLU(x)
+
+        x = self.conv3(x)
+        x = self.BatchNorm3(x)
+        x = self.LeakyReLU(x)
+
+        x = self.conv4(x)
+        x = self.BatchNorm4(x)
+        x = self.LeakyReLU(x)
+
+        x = self.conv5(x)
+        x = x.view(x.size(0), -1)
+        c = self.aux_linear(x)
+        c = self.softmax(c)
+        s = self.disc_linear(x)
+        s = self.sigmoid(s)
+        return s,c
+    def make_layers(self, input_channel, cfg,  batch_norm=False):
+        #cfg = [(64,2), (64,2)]
+        layers = []
+        in_channels = input_channel
+        compress=1
+        for v in cfg[:-1]:
+            conv2d = nn.Conv2d( in_channels, v[0], kernel_size=2+v[1], stride=v[1], padding=1,bias=False)
+            if batch_norm:
+                layers += [conv2d, nn.BatchNorm2d(v[0]),nn.LeakyReLU(0.2)]
+            else:
+                layers += [conv2d, nn.LeakyReLU(0.2)]
+            in_channels = v[0]
+            compress*=v[1]
+        conv2d = nn.Conv2d( in_channels, cfg[-1][0], kernel_size=2+cfg[-1][1], stride=cfg[-1][1], padding=1,bias=False)
+        if batch_norm:
+            layers += [conv2d, nn.BatchNorm2d(cfg[-1][0]),nn.Sigmoid()]
+        else:
+            layers += [conv2d, nn.Sigmoid()]
+        compress*=cfg[-1][1]
+        return nn.Sequential(*layers), compress
+    def optimizer(self, lr=0.001):
+        return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
 class ImageDataset(Dataset):
-    def __init__(self, data, mode):
-        self.data=data
-        self.mode= mode
+    def __init__(self, image, c= None ,  mode= 'acgan'):
+        self.image = image
+        self.c = c
+        self.mode = mode
     def __getitem__(self, i):
         if self.mode=='vae':
-            x=torch.FloatTensor(self.data[i][:])/255
+            x=torch.FloatTensor(self.image[i][:])/255
+            return x
         elif self.mode=='gan':
-            x=(torch.FloatTensor(self.data[i][:])-127.5)/127.5
+            x=(torch.FloatTensor(self.image[i][:])-127.5)/127.5
+            return x
+        elif self.mode=='acgan':
+            x=(torch.FloatTensor(self.image[i][:])-127.5)/127.5
+            c=torch.FloatTensor(self.c[i][:])
+            return x, c
         else: raise ValueError('Wrong mode.')
-        return x
     def __len__(self):
-        return len(self.data)
+        return len(self.image)
