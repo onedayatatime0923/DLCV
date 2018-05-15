@@ -12,7 +12,7 @@ from tensorboardX import SummaryWriter
 assert torch and nn and Variable and F and Dataset and DataLoader
 assert time and np
 
-torch.manual_seed(1213)
+torch.manual_seed(923)
 
 class DataManager():
     def __init__(self,latent_dim=0, discriminator_update_num=0, generator_update_num=0):
@@ -63,8 +63,10 @@ class DataManager():
                 batch_x = Variable(torch.randn(len(y),self.latent_dim).cuda())
                 #loss_gen= torch.mean( -torch.log(1-discriminator(generator(batch_x))))
                 #loss_dis= torch.mean( -torch.log(discriminator(batch_y)))
-                loss_fake= criterion(discriminator(generator(batch_x)),Variable(torch.zeros(len(y),1)).cuda())
-                loss_real= criterion(discriminator(batch_y),Variable(torch.ones(len(y),1)).cuda())
+                zero= Variable( torch.rand(len(y),1)*0.3).cuda()
+                one= Variable( torch.rand(len(y),1)*0.5 + 0.7).cuda()
+                loss_fake= criterion(discriminator(generator(batch_x)), zero)
+                loss_real= criterion(discriminator(batch_y), one)
                 loss= (loss_fake + loss_real) /2
                 '''
                 if epoch== 3:
@@ -91,7 +93,8 @@ class DataManager():
             # update generator
             for j in range(self.generator_update_num):
                 batch_x = Variable(torch.randn(len(y),self.latent_dim).cuda())
-                loss= criterion(discriminator(generator(batch_x)),Variable(torch.ones(len(y),1)).cuda())
+                one= Variable( torch.rand(len(y),1)*0.5 + 0.7).cuda()
+                loss= criterion(discriminator(generator(batch_x)), one)
                 '''
                 if epoch== 3:
                     print(discriminator(batch_Dx[:10]))
@@ -221,7 +224,7 @@ class DataManager():
             if mode== 'vae':
                 im=data[i].transpose((1,2,0))*255
             elif mode== 'gan':
-                im=(data[i].transpose((1,2,0))*128)+127
+                im=(data[i].transpose((1,2,0))*127.5)+127.5
             else: raise ValueError('Wrong mode')
             im=im.astype(np.uint8)
             image = Image.fromarray(im,'RGB')
@@ -307,24 +310,30 @@ class Decoder(nn.Module):
         x = self.conv3(x)
         return x 
 class Generator(nn.Module):
-    def __init__(self, input_size ):
+    def __init__(self, input_size, hidden_size, output_size ):
         super(Generator, self).__init__()
         self.main = nn.Sequential(
-            nn.ConvTranspose2d(input_size, 1024, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(1024),
+            # input is Z, going into a convolution
+            nn.ConvTranspose2d( input_size, hidden_size * 8, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(hidden_size * 8),
             nn.ReLU(True),
-            nn.ConvTranspose2d(1024, 512, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(512),
+            # state size. (hidden_size*8) x 4 x 4
+            nn.ConvTranspose2d(hidden_size * 8, hidden_size * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 4),
             nn.ReLU(True),
-            nn.ConvTranspose2d(512, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
+            # state size. (hidden_size*4) x 8 x 8
+            nn.ConvTranspose2d(hidden_size * 4, hidden_size * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 2),
             nn.ReLU(True),
-            nn.ConvTranspose2d(256, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
+            # state size. (hidden_size*2) x 16 x 16
+            nn.ConvTranspose2d(hidden_size * 2,     hidden_size, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size),
             nn.ReLU(True),
-            nn.ConvTranspose2d(128, 3 , 4, 2, 1, bias=False),
-            nn.BatchNorm2d(3),
-            nn.Tanh())
+            # state size. (hidden_size) x 32 x 32
+            nn.ConvTranspose2d(    hidden_size, output_size, 4, 2, 1, bias=False),
+            nn.Tanh()
+            # state size. ( output_size) x 64 x 64
+        )
     def forward(self, x):
         x = x.unsqueeze(2).unsqueeze(3)
         x = self.main(x)
@@ -352,25 +361,27 @@ class Generator(nn.Module):
     def optimizer(self, lr=0.001):
         return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
 class Discriminator(nn.Module):
-    def __init__(self ):
+    def __init__(self, input_size, hidden_size ):
         super(Discriminator, self).__init__()
         self.main = nn.Sequential(
-            nn.Conv2d(3, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
+            # input is (input_size) x 64 x 64
+            nn.Conv2d(input_size, hidden_size, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
+            # state size. (hidden_size) x 32 x 32
+            nn.Conv2d(hidden_size, hidden_size * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 2),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(256, 512, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(512),
+            # state size. (hidden_size*2) x 16 x 16
+            nn.Conv2d(hidden_size * 2, hidden_size * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 4),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(512, 1024, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(1024),
+            # state size. (hidden_size*4) x 8 x 8
+            nn.Conv2d(hidden_size * 4, hidden_size * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_size * 8),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(1024, 1, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(1),
-            nn.Sigmoid()
-        )
+            # state size. (hidden_size*8) x 4 x 4
+            nn.Conv2d(hidden_size * 8, 1, 4, 1, 0, bias=False),
+            nn.Sigmoid())
     def forward(self, x):
         x = self.main(x)
         x = x.view(x.size(0),-1)
@@ -405,7 +416,7 @@ class ImageDataset(Dataset):
         if self.mode=='vae':
             x=torch.FloatTensor(self.data[i][:])/255
         elif self.mode=='gan':
-            x=(torch.FloatTensor(self.data[i][:])-127)/128
+            x=(torch.FloatTensor(self.data[i][:])-127.5)/127.5
         else: raise ValueError('Wrong mode.')
         return x
     def __len__(self):
