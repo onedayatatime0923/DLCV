@@ -1,5 +1,6 @@
 
 from util import DataManager, Encoder, Generator ,Discriminator
+import torch
 assert DataManager and Encoder and Generator and Discriminator
 
 
@@ -29,3 +30,5 @@ record=1
 for epoch in range(1,EPOCHS+1):
     dm.train_gan('train', generator, discriminator, optimizer, epoch, print_every=5)
     dm.val_gan(generator, discriminator, epoch, n=32, path=OUTPUT_DIR)
+torch.save(generator,'generator.pt')
+torch.save(discriminator,'discriminator.pt')
