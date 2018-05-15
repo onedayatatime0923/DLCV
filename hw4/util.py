@@ -35,16 +35,19 @@ class DataManager():
         self.writer.add_graph(nn.Sequential(*model), (dummy_input, ))
     def get_data(self,name, i_path, c_path= None, mode= 'acgan',batch_size= 128, shuffle=False):
         x=[]
-        y=[]
         for p in i_path:
             file_list = [file for file in os.listdir(p) if file.endswith('.png')]
             file_list.sort()
             for i in file_list:
                 x.append(np.array(Image.open('{}/{}'.format(p,i)),dtype=np.uint8).transpose((2,0,1)))
                 print('\rreading {} image...{}'.format(name,len(x)),end='')
+
+        x=np.array(x)
+        self.data_size= x.shape[1:]
         print('\rreading {} image...finish'.format(name))
 
         if c_path!= None:
+            y=[]
             for p in c_path:
                 with open(p, 'r') as f:
                     next(f)
@@ -52,13 +55,12 @@ class DataManager():
                         data=[int(i=='1.0') for i in line.split(',')[1:]]
                         y.append(np.array(data,dtype=np.uint8))
                         print('\rreading {} class...{}'.format(name,len(y)),end='')
+            y=np.array(y)
+            self.label_size= y.shape[1]
+        else: y=None
         print('\rreading {} class...finish'.format(name))
 
-        x=np.array(x)
-        y=np.array(y)
         self.data[name]=DataLoader(ImageDataset(x, y ,mode),batch_size=batch_size, shuffle=shuffle)
-        self.data_size= x.shape[1:]
-        self.label_size= y.shape[1]
         return x.shape[1:], y.shape[1]
     def train_acgan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
         start= time.time()
