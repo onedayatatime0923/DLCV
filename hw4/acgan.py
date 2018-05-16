@@ -16,11 +16,11 @@ TENSORBOARD_DIR= './runs/acgan'
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
 dm.tb_setting(TENSORBOARD_DIR)
-data_size, label_size=dm.get_data('train', i_path=['./data/train','./data/test'], c_path= ['./data/train.csv','./data/test.csv'],mode= 'acgan', batch_size= BATCH_SIZE, shuffle=True)
+data_size, label_dim=dm.get_data('train', i_path=['./data/train','./data/test'], c_path= ['./data/train.csv','./data/test.csv'],mode= 'acgan', batch_size= BATCH_SIZE, shuffle=True)
 
-generator= Generator(LATENT_DIM+ label_size, GENERATOR_HIDDEN_CHANNEL, data_size[0]).cuda()
-discriminator= Discriminator_Acgan( data_size[0], DISCRIMINATOR_HIDDEN_CHANNEL, label_size).cuda()
-optimizer= [generator.optimizer(),discriminator.optimizer()]
+generator= Generator(LATENT_DIM+ label_dim, GENERATOR_HIDDEN_CHANNEL, data_size[0]).cuda()
+discriminator= Discriminator_Acgan( data_size[0], DISCRIMINATOR_HIDDEN_CHANNEL, label_dim).cuda()
+optimizer= [generator.optimizer( lr=1E-4, betas= (0.5,0.999)),discriminator.optimizer( lr=1E-4, betas= (0.5,0.999))]
 print(generator)
 print(discriminator)
 #dm.tb_graph((generator,discriminator), LATENT_DIM)
