@@ -17,11 +17,11 @@ torch.manual_seed(923)
 class DataManager():
     def __init__(self,latent_dim=0, discriminator_update_num=0, generator_update_num=0):
         self.data={}
-        self.latent_dim= latent_dim
         self.discriminator_update_num= discriminator_update_num
         self.generator_update_num= generator_update_num
+        self.latent_dim= latent_dim
         self.data_size= 0
-        self.label_size= 0
+        self.label_dim= 0
     def tb_setting(self, path):
         for f in os.listdir(path): 
             os.remove('{}/{}'.format(path,f))
@@ -55,8 +55,8 @@ class DataManager():
                         data=[int(i=='1.0') for i in line.split(',')[1:]]
                         y.append(np.array(data,dtype=np.uint8))
                         print('\rreading {} class...{}'.format(name,len(y)),end='')
-            y=np.array(y)
-            self.label_size= y.shape[1]
+            y=np.array(y)[:,7:11]
+            self.label_dim= y.shape[1]
         else: y=None
         print('\rreading {} class...finish'.format(name))
         self.data[name]=DataLoader(ImageDataset(x, y ,mode),batch_size=batch_size, shuffle=shuffle)
@@ -81,32 +81,17 @@ class DataManager():
             origin_c = Variable(c).cuda()
             # update discriminator
             for k in range(self.discriminator_update_num):
-                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),c),1).cuda())
+                latent_c = torch.zeros(len(i),self.label_dim).random_(0,2)
+                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),latent_c),1).cuda())
                 fake_i, fake_c= discriminator(generator(latent))
                 real_i, real_c= discriminator(origin_i)
                 zero= Variable( torch.rand(len(i),1)*0.3).cuda()
                 one= Variable( torch.rand(len(i),1)*0.5 + 0.7).cuda()
                 loss_fake_i= criterion( fake_i, zero)
                 loss_real_i= criterion( real_i, one)
-                loss_fake_c= criterion( fake_c, origin_c)
+                loss_fake_c= criterion( fake_c, Variable(latent_c.cuda()))
                 loss_real_c= criterion( real_c, origin_c)
                 loss= (loss_fake_i + loss_fake_c + loss_real_i + loss_real_c) /4
-                '''
-                if epoch== 3:
-                    self.write(generator(batch_x[: 3]).cpu().data,'./data/gan','gan')
-                    print('fake')
-                    input()
-                    self.write(batch_y[: 3].cpu().data,'./data/gan','gan')
-                    print('real')
-                    input()
-                    print(discriminator(batch_Dx[:10]))
-                    print(batch_Dy[:10])
-                    print(discriminator(batch_Dx[-10:]))
-                    print(batch_Dy[-10:])
-                    print(discriminator(batch_Dx).size())
-                    print(float(loss))
-                    input()
-                '''
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
@@ -115,22 +100,13 @@ class DataManager():
 
             # update generator
             for k in range(self.generator_update_num):
-                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),c),1).cuda())
+                latent_c = torch.zeros(len(i),self.label_dim).random_(0,2)
+                latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),latent_c),1).cuda())
                 fake_i, fake_c= discriminator(generator(latent))
                 one= Variable( torch.rand(len(i),1)*0.5 + 0.7).cuda()
                 loss_fake_i= criterion( fake_i, one)
-                loss_fake_c= criterion( fake_c, origin_c)
+                loss_fake_c= criterion( fake_c, Variable(latent_c.cuda()))
                 loss= (loss_fake_i + loss_fake_c ) /2
-                '''
-                if epoch== 3:
-                    print(discriminator(batch_Dx[:10]))
-                    print(batch_Dy[:10])
-                    print(discriminator(batch_Dx[-10:]))
-                    print(batch_Dy[-10:])
-                    print(discriminator(batch_Dx).size())
-                    print(float(loss))
-                    input()
-                '''
                 #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
                 loss.backward()
@@ -161,11 +137,11 @@ class DataManager():
         
         x= torch.randn(n,self.latent_dim)
         predict= []
-        c_no= torch.FloatTensor([[ 0 for i in range(self.label_size)]]).repeat(n,1)
+        c_no= torch.FloatTensor([[ 0 for i in range(self.label_dim)]]).repeat(n,1)
         latent_no= Variable(torch.cat((x, c_no),1).cuda())
         predict.extend(generator(latent_no).cpu().data.unsqueeze(1))
         for l in label:
-            c_yes= torch.FloatTensor([[ int( i == l) for i in range(self.label_size)]]).repeat(n,1)
+            c_yes= torch.FloatTensor([[ int( i == l) for i in range(self.label_dim)]]).repeat(n,1)
             latent_yes= Variable(torch.cat((x, c_yes),1).cuda())
             predict.extend(generator(latent_yes).cpu().data.unsqueeze(1))
 
@@ -197,7 +173,7 @@ class DataManager():
                 one= Variable( torch.rand(len(y),1)*0.5 + 0.7).cuda()
                 loss_fake= criterion(discriminator(generator(batch_x)), zero)
                 loss_real= criterion(discriminator(batch_y), one)
-                loss= (loss_fake + loss_real) /2
+                loss= (loss_fake + loss_real) 
                 '''
                 if epoch== 3:
                     self.write(generator(batch_x[: 3]).cpu().data,'./data/gan','gan')
@@ -488,8 +464,8 @@ class Generator(nn.Module):
             layers += [conv2d, nn.Tanh()]
         extend*=cfg[-1][1]
         return nn.Sequential(*layers), extend
-    def optimizer(self, lr=0.001):
-        return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
+    def optimizer(self, lr=0.0001, betas= (0.5,0.999)):
+        return torch.optim.Adam(self.parameters(), lr=lr, betas=betas)
 class Discriminator(nn.Module):
     def __init__(self, input_size, hidden_size ):
         super(Discriminator, self).__init__()
@@ -536,10 +512,10 @@ class Discriminator(nn.Module):
             layers += [conv2d, nn.Sigmoid()]
         compress*=cfg[-1][1]
         return nn.Sequential(*layers), compress
-    def optimizer(self, lr=0.001):
-        return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
+    def optimizer(self, lr=0.0001, betas= (0.5,0.999)):
+        return torch.optim.Adam(self.parameters(), lr=lr, betas=betas)
 class Discriminator_Acgan(nn.Module):
-    def __init__(self, input_size, hidden_size, label_size ):
+    def __init__(self, input_size, hidden_size, label_dim):
         super(Discriminator_Acgan, self).__init__()
         self.LeakyReLU = nn.LeakyReLU(0.2, inplace=True)
         self.conv1 = nn.Conv2d( input_size, hidden_size, 4, 2, 1, bias=False)
@@ -551,7 +527,7 @@ class Discriminator_Acgan(nn.Module):
         self.BatchNorm4 = nn.BatchNorm2d(hidden_size * 8)
         self.conv5 = nn.Conv2d(hidden_size * 8, hidden_size * 1, 4, 1, 0, bias=False)
         self.disc_linear = nn.Linear(hidden_size * 1, 1)
-        self.aux_linear = nn.Linear(hidden_size * 1, label_size)
+        self.aux_linear = nn.Linear(hidden_size * 1, label_dim)
         self.softmax = nn.Softmax(1)
         self.sigmoid = nn.Sigmoid()
     def forward(self, x):
@@ -597,36 +573,38 @@ class Discriminator_Acgan(nn.Module):
             layers += [conv2d, nn.Sigmoid()]
         compress*=cfg[-1][1]
         return nn.Sequential(*layers), compress
-    def optimizer(self, lr=0.001):
-        return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
+    def optimizer(self, lr=0.0001, betas= (0.5,0.999)):
+        return torch.optim.Adam(self.parameters(), lr=lr, betas=betas)
 class ImageDataset(Dataset):
-    def __init__(self, image, c= None , mode= 'acgan', flip=True, data_num= 1):
+    def __init__(self, image, c= None , mode= 'acgan', flip=True, rotate= False):
         self.image = image
         self.c = c
         self.mode = mode
-        self.flip= int (flip) +1
-        self.data_num= data_num
+        self.flip_n= int(flip)+1
+        self.rotate= rotate
     def __getitem__(self, i):
-        index= i/( ( int(self.flip) +1 ) * self.data_num)
-        flip = bool( i %( self.flip * self.data_num ) % self.flip)
-        data_num = ( i %( self.flip * self.data_num ) / self.flip % self.data_num)
+        index= i// self.flip_n 
+        flip = bool( i % self.flip_n )
 
         if self.mode=='vae':
-            x=torch.FloatTensor(self.image[index][:])/255
-            if flip == True: x= x[:,::-1]
-            if data_num>0: x=torchvision.transforms.RandomRotation(5)
+            if flip == True: x= np.flip(self.image[index],2).copy()
+            else: x= self.image[index]
+            x=torch.FloatTensor(x)/255
+            if self.rotate: x=torchvision.transforms.RandomRotation(5)
             return x
         elif self.mode=='gan':
-            x=(torch.FloatTensor(self.image[index][:])-127.5)/127.5
-            if flip == True: x= x[:,::-1]
-            if data_num>0: x=torchvision.transforms.RandomRotation(5)
+            if flip == True: x= np.flip(self.image[index],2).copy()
+            else: x= self.image[index]
+            x=(torch.FloatTensor(x)- 127.5)/127.5
+            if self.rotate>0: x=torchvision.transforms.RandomRotation(5)
             return x
         elif self.mode=='acgan':
-            x=(torch.FloatTensor(self.image[index][:])-127.5)/127.5
-            c=torch.FloatTensor(self.c[i][:])
-            if flip == True: x= x[:,::-1]
-            if data_num>0: x=torchvision.transforms.RandomRotation(5)
+            if flip == True: x= np.flip(self.image[index],2).copy()
+            else: x= self.image[index]
+            x=(torch.FloatTensor(x)- 127.5)/127.5
+            c=torch.FloatTensor(self.c[index][:])
+            if self.rotate>0: x=torchvision.transforms.RandomRotation(5)
             return x, c
         else: raise ValueError('Wrong mode.')
     def __len__(self):
-        return len(self.image)*self.flip*self.data_num
+        return len(self.image)*self.flip_n
