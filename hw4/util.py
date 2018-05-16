@@ -59,7 +59,7 @@ class DataManager():
             self.label_dim= y.shape[1]
         else: y=None
         print('\rreading {} class...finish'.format(name))
-        self.data[name]=DataLoader(ImageDataset(x, y ,mode),batch_size=batch_size, shuffle=shuffle)
+        self.data[name]=DataLoader(ImageDataset(x, y ,mode, flip= False),batch_size=batch_size, shuffle=shuffle)
         if c_path == None: return x.shape[1:]
         else: return x.shape[1:], y.shape[1]
     def train_acgan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
@@ -131,7 +131,7 @@ class DataManager():
         self.writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
         self.writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
         print('-'*80)
-    def val_acgan(self, generator, discriminator, label=[0], epoch=None, n=20, path=None):
+    def val_acgan(self, generator, discriminator, epoch=None, n=20, path=None):
         generator.eval()
         discriminator.eval()
         
@@ -140,7 +140,7 @@ class DataManager():
         c_no= torch.FloatTensor([[ 0 for i in range(self.label_dim)]]).repeat(n,1)
         latent_no= Variable(torch.cat((x, c_no),1).cuda())
         predict.extend(generator(latent_no).cpu().data.unsqueeze(1))
-        for l in label:
+        for l in range(self.label_dim):
             c_yes= torch.FloatTensor([[ int( i == l) for i in range(self.label_dim)]]).repeat(n,1)
             latent_yes= Variable(torch.cat((x, c_yes),1).cuda())
             predict.extend(generator(latent_yes).cpu().data.unsqueeze(1))

@@ -5,7 +5,7 @@ assert DataManager and Encoder and Generator and Discriminator_Acgan
 
 
 BATCH_SIZE=  128
-EPOCHS= 300
+EPOCHS= 100
 LATENT_DIM= 128
 GENERATOR_HIDDEN_CHANNEL = 128
 DISCRIMINATOR_HIDDEN_CHANNEL = 128
@@ -27,6 +27,6 @@ print(discriminator)
 
 for epoch in range(1,EPOCHS+1):
     dm.train_acgan('train', generator, discriminator, optimizer, epoch, print_every=5)
-    dm.val_acgan(generator, discriminator, label=[8,9,10], epoch= epoch, n=10, path=OUTPUT_DIR)
+    dm.val_acgan(generator, discriminator, epoch= epoch, n=10, path=OUTPUT_DIR)
 torch.save(generator,'generator_acgan.pt')
 torch.save(discriminator,'discriminator_acgan.pt')
