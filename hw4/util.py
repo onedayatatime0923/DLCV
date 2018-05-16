@@ -76,14 +76,12 @@ class DataManager():
         
         data_size= len(self.data[name].dataset)
         for j, (i, c) in enumerate(self.data[name]):
-            self.write(i,'./test', mode='gan')
-            print('write')
             batch_index=j+1
             origin_i = Variable(i).cuda()
             origin_c = Variable(c).cuda()
             # update discriminator
             for k in range(self.discriminator_update_num):
-                latent_c = Variable(torch.zeros(len(i),self.label_dim).random_(0,2).cuda())
+                latent_c = torch.zeros(len(i),self.label_dim).random_(0,2)
                 latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),latent_c),1).cuda())
                 fake_i, fake_c= discriminator(generator(latent))
                 real_i, real_c= discriminator(origin_i)
@@ -91,25 +89,9 @@ class DataManager():
                 one= Variable( torch.rand(len(i),1)*0.5 + 0.7).cuda()
                 loss_fake_i= criterion( fake_i, zero)
                 loss_real_i= criterion( real_i, one)
-                loss_fake_c= criterion( fake_c, latent_c)
+                loss_fake_c= criterion( fake_c, Variable(latent_c.cuda()))
                 loss_real_c= criterion( real_c, origin_c)
                 loss= (loss_fake_i + loss_fake_c + loss_real_i + loss_real_c) /4
-                '''
-                if epoch== 3:
-                    self.write(generator(batch_x[: 3]).cpu().data,'./data/gan','gan')
-                    print('fake')
-                    input()
-                    self.write(batch_y[: 3].cpu().data,'./data/gan','gan')
-                    print('real')
-                    input()
-                    print(discriminator(batch_Dx[:10]))
-                    print(batch_Dy[:10])
-                    print(discriminator(batch_Dx[-10:]))
-                    print(batch_Dy[-10:])
-                    print(discriminator(batch_Dx).size())
-                    print(float(loss))
-                    input()
-                '''
                 discriminator_optimizer.zero_grad()
                 loss.backward()
                 discriminator_optimizer.step()
@@ -118,23 +100,13 @@ class DataManager():
 
             # update generator
             for k in range(self.generator_update_num):
-                latent_c = Variable(torch.zeros(len(i),self.label_dim).random_(0,2).cuda())
+                latent_c = torch.zeros(len(i),self.label_dim).random_(0,2)
                 latent = Variable(torch.cat((torch.randn(len(i),self.latent_dim),latent_c),1).cuda())
                 fake_i, fake_c= discriminator(generator(latent))
                 one= Variable( torch.rand(len(i),1)*0.5 + 0.7).cuda()
                 loss_fake_i= criterion( fake_i, one)
-                loss_fake_c= criterion( fake_c, latent_c)
+                loss_fake_c= criterion( fake_c, Variable(latent_c.cuda()))
                 loss= (loss_fake_i + loss_fake_c ) /2
-                '''
-                if epoch== 3:
-                    print(discriminator(batch_Dx[:10]))
-                    print(batch_Dy[:10])
-                    print(discriminator(batch_Dx[-10:]))
-                    print(batch_Dy[-10:])
-                    print(discriminator(batch_Dx).size())
-                    print(float(loss))
-                    input()
-                '''
                 #loss=  torch.mean(-torch.log(discriminator(generator(batch_x))))
                 generator_optimizer.zero_grad()
                 loss.backward()
@@ -613,8 +585,6 @@ class ImageDataset(Dataset):
     def __getitem__(self, i):
         index= i// self.flip_n 
         flip = bool( i % self.flip_n )
-        print(index,flip)
-        input()
 
         if self.mode=='vae':
             if flip == True: x= np.flip(self.image[index],2).copy()
