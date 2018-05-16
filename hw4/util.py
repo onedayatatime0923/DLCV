@@ -600,21 +600,33 @@ class Discriminator_Acgan(nn.Module):
     def optimizer(self, lr=0.001):
         return torch.optim.Adam(self.parameters(), lr=0.001, betas=(0.9, 0.999))
 class ImageDataset(Dataset):
-    def __init__(self, image, c= None ,  mode= 'acgan'):
+    def __init__(self, image, c= None , mode= 'acgan', flip=True, data_num= 1):
         self.image = image
         self.c = c
         self.mode = mode
+        self.flip= int (flip) +1
+        self.data_num= data_num
     def __getitem__(self, i):
+        index= i/( ( int(self.flip) +1 ) * self.data_num)
+        flip = bool( i %( self.flip * self.data_num ) % self.flip)
+        data_num = ( i %( self.flip * self.data_num ) / self.flip % self.data_num)
+
         if self.mode=='vae':
-            x=torch.FloatTensor(self.image[i][:])/255
+            x=torch.FloatTensor(self.image[index][:])/255
+            if flip == True: x= x[:,::-1]
+            if data_num>0: x=torchvision.transforms.RandomRotation(5)
             return x
         elif self.mode=='gan':
-            x=(torch.FloatTensor(self.image[i][:])-127.5)/127.5
+            x=(torch.FloatTensor(self.image[index][:])-127.5)/127.5
+            if flip == True: x= x[:,::-1]
+            if data_num>0: x=torchvision.transforms.RandomRotation(5)
             return x
         elif self.mode=='acgan':
-            x=(torch.FloatTensor(self.image[i][:])-127.5)/127.5
+            x=(torch.FloatTensor(self.image[index][:])-127.5)/127.5
             c=torch.FloatTensor(self.c[i][:])
+            if flip == True: x= x[:,::-1]
+            if data_num>0: x=torchvision.transforms.RandomRotation(5)
             return x, c
         else: raise ValueError('Wrong mode.')
     def __len__(self):
-        return len(self.image)
+        return len(self.image)*self.flip*self.data_num
