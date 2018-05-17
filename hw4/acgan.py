@@ -6,7 +6,7 @@ assert DataManager and Encoder and Generator and Discriminator_Acgan
 
 
 BATCH_SIZE=  128
-EPOCHS= 2
+EPOCHS= 200
 LATENT_DIM= 128
 LABEL_ID= (7,8)
 GENERATOR_HIDDEN_CHANNEL = 128

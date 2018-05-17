@@ -7,7 +7,7 @@ assert DataManager and Encoder and Decoder and F
 
 
 BATCH_SIZE=  64
-EPOCHS= 2
+EPOCHS= 50
 LATENT_DIM= 512
 LABEL_ID= (7,8)
 HIDDEN_SIZE= 256
