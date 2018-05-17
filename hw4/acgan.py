@@ -1,11 +1,12 @@
 
 from util import DataManager, Encoder, Generator ,Discriminator_Acgan
 import torch
+import numpy as np
 assert DataManager and Encoder and Generator and Discriminator_Acgan
 
 
 BATCH_SIZE=  128
-EPOCHS= 300
+EPOCHS= 2
 LATENT_DIM= 128
 GENERATOR_HIDDEN_CHANNEL = 128
 DISCRIMINATOR_HIDDEN_CHANNEL = 128
@@ -25,8 +26,10 @@ print(generator)
 print(discriminator)
 #dm.tb_graph((generator,discriminator), LATENT_DIM)
 
+train_record=[]
 for epoch in range(1,EPOCHS+1):
-    dm.train_acgan('train', generator, discriminator, optimizer, epoch, print_every=5)
-    dm.val_acgan(generator, discriminator, label=[8,9,10], epoch= epoch, n=10, path=OUTPUT_DIR)
+    train_record.append(dm.train_acgan('train', generator, discriminator, optimizer, epoch, print_every=5))
+    dm.val_acgan(generator, discriminator, epoch= epoch, n=10, path=OUTPUT_DIR)
 torch.save(generator,'generator_acgan.pt')
 torch.save(discriminator,'discriminator_acgan.pt')
+np.save('record/gan_train_record.npy', np.array(train_record))

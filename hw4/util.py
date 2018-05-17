@@ -7,8 +7,11 @@ from torch.utils.data import Dataset,DataLoader
 import torchvision
 from PIL import Image
 import numpy as np
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 import time, os, math
 from tensorboardX import SummaryWriter 
+import matplotlib.pyplot as plt
 assert torch and nn and Variable and F and Dataset and DataLoader
 assert time and np
 
@@ -22,6 +25,7 @@ class DataManager():
         self.latent_dim= latent_dim
         self.data_size= 0
         self.label_dim= 0
+        self.writer= None
     def tb_setting(self, path):
         for f in os.listdir(path): 
             os.remove('{}/{}'.format(path,f))
@@ -33,7 +37,7 @@ class DataManager():
             dummy_input= Variable( torch.rand(1, input_shape).cuda())
         else: raise ValueError('Wrong input_shape')
         self.writer.add_graph(nn.Sequential(*model), (dummy_input, ))
-    def get_data(self,name, i_path, c_path= None, mode= 'acgan',batch_size= 128, shuffle=False):
+    def get_data(self,name, i_path, c_path= None, class_range=None, mode= 'acgan',batch_size= 128, shuffle=False):
         x=[]
         for p in i_path:
             file_list = [file for file in os.listdir(p) if file.endswith('.png')]
@@ -46,7 +50,7 @@ class DataManager():
         self.data_size= x.shape[1:]
         print('\rreading {} image...finish'.format(name))
 
-        if c_path!= None:
+        if class_range!= None:
             y=[]
             for p in c_path:
                 with open(p, 'r') as f:
@@ -54,14 +58,15 @@ class DataManager():
                     for line in f:
                         data=[int(i=='1.0') for i in line.split(',')[1:]]
                         y.append(np.array(data,dtype=np.uint8))
-                        print('\rreading {} class...{}'.format(name,len(y)),end='')
-            y=np.array(y)[:,7:11]
+                    print('\rreading {} class...{}'.format(name,len(y)),end='')
+            y=np.array(y)[:,class_range[0]:class_range[1]]
             self.label_dim= y.shape[1]
-        else: y=None
-        print('\rreading {} class...finish'.format(name))
-        self.data[name]=DataLoader(ImageDataset(x, y ,mode),batch_size=batch_size, shuffle=shuffle)
-        if c_path == None: return x.shape[1:]
-        else: return x.shape[1:], y.shape[1]
+            print('\rreading {} class...finish'.format(name))
+            self.data[name]=DataLoader(ImageDataset(x, y ,mode, flip= False),batch_size=batch_size, shuffle=shuffle)
+            return x.shape[1:], y.shape[1]
+        else:
+            self.data[name]=DataLoader(ImageDataset(x, None ,mode, flip= False),batch_size=batch_size, shuffle=shuffle)
+            return x.shape[1:]
     def train_acgan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
         start= time.time()
         generator.train()
@@ -128,10 +133,12 @@ class DataManager():
                         epoch , data_size, data_size, 100. ,
                         float(total_loss[1])/batch_index,float(total_loss[0])/batch_index,
                         self.timeSince(start, 1)))
-        self.writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
-        self.writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
+        if self.writer != None:
+            self.writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
+            self.writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
         print('-'*80)
-    def val_acgan(self, generator, discriminator, label=[0], epoch=None, n=20, path=None):
+        return total_loss[0]/ batch_index, total_loss[1]/ batch_index
+    def val_acgan(self, generator, discriminator, epoch=None, n=20, path=None, sample_i_path= None):
         generator.eval()
         discriminator.eval()
         
@@ -140,14 +147,16 @@ class DataManager():
         c_no= torch.FloatTensor([[ 0 for i in range(self.label_dim)]]).repeat(n,1)
         latent_no= Variable(torch.cat((x, c_no),1).cuda())
         predict.extend(generator(latent_no).cpu().data.unsqueeze(1))
-        for l in label:
+        for l in range(self.label_dim):
             c_yes= torch.FloatTensor([[ int( i == l) for i in range(self.label_dim)]]).repeat(n,1)
             latent_yes= Variable(torch.cat((x, c_yes),1).cuda())
             predict.extend(generator(latent_yes).cpu().data.unsqueeze(1))
 
         predict= torch.cat(predict,0)
-        self.write(predict,path,'gan')
-        self.writer.add_image('sample image result', torchvision.utils.make_grid(predict, nrow=n, normalize=True, range=(-1,1)), epoch)
+        if self.writer!=None:
+            self.write(predict,path,'gan')
+            self.writer.add_image('sample image result', torchvision.utils.make_grid(predict, nrow=n, normalize=True, range=(-1,1)), epoch)
+        if sample_i_path != None: self.plot_grid(torchvision.utils.make_grid((predict*127.5)+127.5, nrow= n), sample_i_path)
     def train_gan(self,name, generator, discriminator, optimizer, epoch, print_every=1):
         start= time.time()
         generator.train()
@@ -232,10 +241,12 @@ class DataManager():
                         epoch , data_size, data_size, 100. ,
                         float(total_loss[1])/batch_index,float(total_loss[0])/batch_index,
                         self.timeSince(start, 1)))
-        self.writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
-        self.writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
+        if self.writer!=None:
+            self.writer.add_scalar('discriminator loss', float(total_loss[0])/ batch_index, epoch)
+            self.writer.add_scalar('generator loss', float(total_loss[1])/ batch_index, epoch)
         print('-'*80)
-    def val_gan(self, generator, discriminator, epoch, n=20, path=None):
+        return total_loss[0]/ batch_index, total_loss[1]/ batch_index
+    def val_gan(self, generator, discriminator, epoch=0, n=20, path=None, sample_i_path = None):
         generator.eval()
         discriminator.eval()
         
@@ -243,7 +254,9 @@ class DataManager():
         predict= generator(batch_x).cpu().data
         self.write(predict,path,'gan')
 
-        self.writer.add_image('sample image result', torchvision.utils.make_grid(predict, normalize=True, range=(-1,1)), epoch)
+        if self.writer!=None:
+            self.writer.add_image('sample image result', torchvision.utils.make_grid(predict, normalize=True, range=(-1,1)), epoch)
+        if sample_i_path != None: self.plot_grid(torchvision.utils.make_grid((predict*127.5)+127.5), sample_i_path)
     def train_vae(self,name, encoder, decoder, optimizer, epoch, kl_coefficient=5E-5, print_every=5):
         start= time.time()
         encoder.train()
@@ -257,7 +270,7 @@ class DataManager():
         batch_loss=torch.zeros(2)
         
         data_size= len(self.data[name].dataset)
-        for i, x in enumerate(self.data[name]):
+        for i, (x, c) in enumerate(self.data[name]):
             batch_index=i+1
             batch_x= Variable(x).cuda()
             mean_x, logvar_x= encoder(batch_x)
@@ -276,24 +289,30 @@ class DataManager():
             if batch_index% print_every == 0:
                 print_loss= batch_loss / print_every
                 batch_loss=torch.zeros(2)
-                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] |  Reconstruction Loss: {:.6f} | KL Divergance Loss: {:.6f} | Time: {}  '.format(
+                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | MSE Loss: {:.6f} | KL Loss: {:.6f} | Time: {}  '.format(
                                 epoch , batch_index*len(batch_x), data_size, 100. * batch_index*len(batch_x)/ data_size, 
                                 float(print_loss[0]),float(print_loss[1]),
                                 self.timeSince(start, batch_index*len(batch_x)/ data_size)),end='')
-        print('\nTime: {} | Total  Reconstruction Loss: {:.6f} | Total KL Divergance Loss: {:.6f}  '.format(self.timeSince(start,1),
-                    float(total_loss[0])/batch_index, float(total_loss[1])/batch_index))
+        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Total MSE Loss: {:.6f} | Total KL Loss: {:.6f} | Time: {}  '.format(
+                        epoch , data_size, data_size, 100,
+                        float(total_loss[0]/ batch_index), float(total_loss[1]/ batch_index),
+                        self.timeSince(start, 1)))
         print('-'*80)
-    def val_vae(self,name, encoder, decoder, optimizer, epoch, print_every=5, sample_n= 50, record=0, path=None):
+        self.writer.add_scalar('Train Reconstruction loss', float(total_loss[0])/ batch_index, epoch)
+        self.writer.add_scalar('Train KL Divergance loss', float(total_loss[1])/ batch_index, epoch)
+        return total_loss[0]/ batch_index, total_loss[1]/ batch_index
+    def val_vae(self,name, encoder, decoder, optimizer, epoch=0, print_every=5, reconstruct_n = 10, sample_n= 32,  path=None,reconstruct_i_path=None,sample_i_path=None):
         start= time.time()
         encoder.eval()
         decoder.eval()
 
         criterion = nn.MSELoss()
         total_loss=torch.zeros(2)
+        ground =[]
         predict=[]
         
         data_size= len(self.data[name].dataset)
-        for i, x in enumerate(self.data[name]):
+        for i, (x, c) in enumerate(self.data[name]):
             batch_index=i+1
             batch_x= Variable(x).cuda()
             mean_x, logvar_x= encoder(batch_x)
@@ -302,6 +321,8 @@ class DataManager():
             kl_divergence_loss= torch.sum((-1/2)*( 1+ logvar_x- mean_x**2 - torch.exp(logvar_x)))/(len(x))
             # loss
             total_loss+= torch.FloatTensor([float(reconstruction_loss), float(kl_divergence_loss)]) # sum up total loss
+            # ground
+            ground.extend(x.unsqueeze(0))
             # predict
             predict.extend(output.cpu().data.unsqueeze(0))
             if batch_index % print_every == 0:
@@ -311,18 +332,45 @@ class DataManager():
                         self.timeSince(start, batch_index*len(x)/ data_size)),end='')
 
         total_loss/=  batch_index
+        ground=torch.cat(ground,0)
         predict=torch.cat(predict,0)
 
         sample_x = Variable(torch.normal(torch.zeros(sample_n,self.latent_dim))).cuda()
         predict= torch.cat((decoder(sample_x,mode='test').cpu().data,predict),0)
-        self.write(predict,path)
         print('\nVal set: Average Reconstruction Loss: {:.6f} | Average KL Divergance Loss: {:.6f} | Time: {}  '.format(float(total_loss[0]),float(total_loss[1]),
-                        self.timeSince(start, batch_index*len(batch_x)/ data_size)))
+                        self.timeSince(start,1)))
         print('-'*80)
-        if float(total_loss[0])< record and path != None:
-            self.write(predict,path)
-            record=float(total_loss[0])
-        return record
+        #self.write(predict,path,'vae')
+        if self.writer!=None:
+            self.writer.add_scalar('Test Reconstruction loss', float(total_loss[0]), epoch)
+            self.writer.add_scalar('Test KL Divergance loss', float(total_loss[1]), epoch)
+            self.writer.add_image('sample image result', torchvision.utils.make_grid(predict[:sample_n], normalize=True, range=(0,1)), epoch)
+        reconstruct=torch.cat((ground[:reconstruct_n], predict[sample_n:sample_n+reconstruct_n]),0)
+        if reconstruct_i_path != None: self.plot_grid(torchvision.utils.make_grid(reconstruct*255,nrow=reconstruct_n), reconstruct_i_path)
+        if sample_i_path != None: self.plot_grid(torchvision.utils.make_grid(predict[:sample_n]*255), sample_i_path)
+        return total_loss[0], total_loss[1]
+    def visualize_latent_space(self, name, encoder, path):
+        class_0=[]
+        class_1=[]
+        for i, (x, c) in enumerate(self.data[name]):
+            batch_x= Variable(x).cuda()
+            mean_x, _ = encoder(batch_x)
+            # predict
+            c=c.squeeze(1)
+            class_0_index= torch.nonzero(1-c).cuda().squeeze(1)
+            class_0.extend(torch.index_select(mean_x.data, 0, class_0_index).unsqueeze(1))
+            class_1_index= torch.nonzero(c).cuda().squeeze(1)
+            class_1.extend(torch.index_select(mean_x.data, 0, class_1_index).unsqueeze(1))
+        data=torch.cat(class_0 +class_1,0)
+        print('PCA data reduct...',end='')
+        data=PCA(n_components=4).fit_transform(data)
+        print('\rTSNE data reduct...',end='')
+        print('                       \r',end='')
+        data= TSNE(n_components=2, random_state=23).fit_transform(data)
+        plt.figure()
+        plt.scatter(data[:len(class_0),0], data[:len(class_0),1], s= 5, c='r')
+        plt.scatter(data[len(class_0):,0], data[len(class_0):,1], s= 5, c='b')
+        plt.savefig(path)
     def write(self,data,path,mode):
         data=data.numpy()
         #print(output.shape)
@@ -335,6 +383,22 @@ class DataManager():
             im=im.astype(np.uint8)
             image = Image.fromarray(im,'RGB')
             image.save('{}/{:0>4}.png'.format(path,i))
+    def plot_grid(self,im,path):
+        im=im.numpy().transpose((1,2,0))
+        #print(output.shape)
+        im=im.astype(np.uint8)
+        image = Image.fromarray(im,'RGB')
+        image.save('{}'.format(path))
+    def plot_record(self,data, path, title, color='b'):
+        x=np.array(range(1,len(data)+1))
+        plt.figure()
+        plt.subplot(2,1,1)
+        plt.plot(x,data[:,0],'b')
+        plt.title(title[0])
+        plt.subplot(2,1,2)
+        plt.plot(x,data[:,1],'b')
+        plt.title(title[1])
+        plt.savefig(path)
     def timeSince(self,since, percent):
         now = time.time()
         s = now - since
@@ -576,7 +640,7 @@ class Discriminator_Acgan(nn.Module):
     def optimizer(self, lr=0.0001, betas= (0.5,0.999)):
         return torch.optim.Adam(self.parameters(), lr=lr, betas=betas)
 class ImageDataset(Dataset):
-    def __init__(self, image, c= None , mode= 'acgan', flip=True, rotate= False):
+    def __init__(self, image, c, mode, flip=True, rotate= False):
         self.image = image
         self.c = c
         self.mode = mode
@@ -591,19 +655,16 @@ class ImageDataset(Dataset):
             else: x= self.image[index]
             x=torch.FloatTensor(x)/255
             if self.rotate: x=torchvision.transforms.RandomRotation(5)
-            return x
+            if not isinstance(self.c, np.ndarray) : return x
+            c=torch.FloatTensor(self.c[index][:])
+            return x, c
         elif self.mode=='gan':
             if flip == True: x= np.flip(self.image[index],2).copy()
             else: x= self.image[index]
             x=(torch.FloatTensor(x)- 127.5)/127.5
             if self.rotate>0: x=torchvision.transforms.RandomRotation(5)
-            return x
-        elif self.mode=='acgan':
-            if flip == True: x= np.flip(self.image[index],2).copy()
-            else: x= self.image[index]
-            x=(torch.FloatTensor(x)- 127.5)/127.5
+            if not isinstance(self.c, np.ndarray) : return x
             c=torch.FloatTensor(self.c[index][:])
-            if self.rotate>0: x=torchvision.transforms.RandomRotation(5)
             return x, c
         else: raise ValueError('Wrong mode.')
     def __len__(self):
