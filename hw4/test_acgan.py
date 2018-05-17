@@ -8,13 +8,14 @@ assert DataManager and Encoder and Generator and Discriminator_Acgan
 BATCH_SIZE=  128
 EPOCHS= 100
 LATENT_DIM= 128
+LABEL_ID= (7,8)
 GENERATOR_UPDATE_NUM= 1
 DISCRIMINATOR_UPDATE_NUM= 1
 INPUT_DIR= './record'
 OUTPUT_DIR= './data/acgan'
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
-data_size, label_dim=dm.get_data('train', i_path=['./data/train','./data/test'], c_path= ['./data/train.csv','./data/test.csv'],mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)
+data_size, label_dim=dm.get_data('train', i_path=['./data/train','./data/test'], c_path= ['./data/train.csv','./data/test.csv'],class_range=LABEL_ID,mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)
 
 generator= torch.load('generator_acgan.pt')
 discriminator= torch.load('discriminator_acgan.pt')

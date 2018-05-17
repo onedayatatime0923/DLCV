@@ -8,6 +8,7 @@ assert DataManager and Encoder and Generator and Discriminator_Acgan
 BATCH_SIZE=  128
 EPOCHS= 2
 LATENT_DIM= 128
+LABEL_ID= (7,8)
 GENERATOR_HIDDEN_CHANNEL = 128
 DISCRIMINATOR_HIDDEN_CHANNEL = 128
 GENERATOR_UPDATE_NUM= 1
@@ -17,7 +18,7 @@ TENSORBOARD_DIR= './runs/acgan'
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
 dm.tb_setting(TENSORBOARD_DIR)
-data_size, label_dim=dm.get_data('train', i_path=['./data/train','./data/test'], c_path= ['./data/train.csv','./data/test.csv'],mode= 'acgan', batch_size= BATCH_SIZE, shuffle=True)
+data_size, label_dim=dm.get_data('train', i_path=['./data/train','./data/test'], c_path= ['./data/train.csv','./data/test.csv'],class_range=LABEL_ID,mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)
 
 generator= Generator(LATENT_DIM+ label_dim, GENERATOR_HIDDEN_CHANNEL, data_size[0]).cuda()
 discriminator= Discriminator_Acgan( data_size[0], DISCRIMINATOR_HIDDEN_CHANNEL, label_dim).cuda()
