@@ -25,6 +25,7 @@ discriminator= Discriminator( data_shape[0], DISCRIMINATOR_HIDDEN_CHANNEL).cuda(
 optimizer= [generator.optimizer(),discriminator.optimizer()]
 print(generator)
 print(discriminator)
+input()
 dm.tb_graph((generator,discriminator), LATENT_DIM)
 
 record=1
