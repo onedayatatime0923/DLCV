@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 assert torch and nn and Variable and F and Dataset and DataLoader
 assert time and np
 
-torch.manual_seed(923)
 
 class DataManager():
     def __init__(self,latent_dim=0, discriminator_update_num=0, generator_update_num=0):
@@ -24,7 +23,7 @@ class DataManager():
         self.generator_update_num= generator_update_num
         self.latent_dim= latent_dim
         self.data_size= 0
-        self.label_dim= 1
+        self.label_dim= 4
         self.writer= None
     def tb_setting(self, path):
         for f in os.listdir(path): 
@@ -147,10 +146,11 @@ class DataManager():
         c_no= torch.FloatTensor([[ 0 for i in range(self.label_dim)]]).repeat(n,1)
         latent_no= Variable(torch.cat((x, c_no),1).cuda())
         predict.extend(generator(latent_no).cpu().data.unsqueeze(1))
-        for l in range(self.label_dim):
-            c_yes= torch.FloatTensor([[ int( i == l) for i in range(self.label_dim)]]).repeat(n,1)
-            latent_yes= Variable(torch.cat((x, c_yes),1).cuda())
-            predict.extend(generator(latent_yes).cpu().data.unsqueeze(1))
+        #for l in range(self.label_dim):
+        l=1
+        c_yes= torch.FloatTensor([[ int( i == l) for i in range(self.label_dim)]]).repeat(n,1)
+        latent_yes= Variable(torch.cat((x, c_yes),1).cuda())
+        predict.extend(generator(latent_yes).cpu().data.unsqueeze(1))
 
         predict= torch.cat(predict,0)
         if self.writer!=None:

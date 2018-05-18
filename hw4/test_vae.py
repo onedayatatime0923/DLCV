@@ -7,6 +7,7 @@ import sys
 assert DataManager and Encoder and Decoder and F and np and sys
 
 
+torch.manual_seed(923)
 BATCH_SIZE=  64
 LATENT_DIM= 512
 LABEL_ID= (7,8)

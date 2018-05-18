@@ -6,6 +6,7 @@ import sys
 assert DataManager and Encoder and Generator and Discriminator
 
 
+torch.manual_seed(1206)
 BATCH_SIZE=  128
 LATENT_DIM= 128
 GENERATOR_UPDATE_NUM= 1
