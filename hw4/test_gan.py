@@ -10,22 +10,22 @@ LATENT_DIM= 128
 GENERATOR_UPDATE_NUM= 1
 DISCRIMINATOR_UPDATE_NUM= 1
 INPUT_DIR= './record'
-OUTPUT_DIR= './data/gan'
+OUTPUT_DIR= './output'
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
-train_shape =dm.get_data('train',i_path=['./data/train','./data/test'], mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)
-data_shape=train_shape
+#train_shape =dm.get_data('train',i_path=['./data/train','./data/test'], mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)
+#data_shape=train_shape
 
 generator= torch.load('generator.pt')
 discriminator= torch.load('discriminator.pt')
-print(generator)
-print(discriminator)
+#print(generator)
+#print(discriminator)
 
 ###############################################################
 #                       fig 1_2                               #
 ###############################################################
 train_record= np.load('{}/gan_train_record.npy'.format(INPUT_DIR))
-dm.plot_record(train_record, '{}/fig2_2.jpg'.format(OUTPUT_DIR),['train_D_loss','train_G_loss'])
+dm.plot_record(train_record, '{}/fig2_2.jpg'.format(OUTPUT_DIR),['Gan_train_D_loss','Gan_train_G_loss'])
 
 ###############################################################
 #                       fig 1_3                               #

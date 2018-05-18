@@ -24,7 +24,7 @@ class DataManager():
         self.generator_update_num= generator_update_num
         self.latent_dim= latent_dim
         self.data_size= 0
-        self.label_dim= 0
+        self.label_dim= 1
         self.writer= None
     def tb_setting(self, path):
         for f in os.listdir(path): 
@@ -252,7 +252,7 @@ class DataManager():
         
         batch_x = Variable(torch.randn(n,self.latent_dim).cuda())
         predict= generator(batch_x).cpu().data
-        self.write(predict,path,'gan')
+        #self.write(predict,path,'gan')
 
         if self.writer!=None:
             self.writer.add_image('sample image result', torchvision.utils.make_grid(predict, normalize=True, range=(-1,1)), epoch)
