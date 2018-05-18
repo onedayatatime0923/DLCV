@@ -33,4 +33,4 @@ for epoch in range(1,EPOCHS+1):
     dm.val_acgan(generator, discriminator, epoch= epoch, n=10, path=OUTPUT_DIR)
 torch.save(generator,'generator_acgan.pt')
 torch.save(discriminator,'discriminator_acgan.pt')
-np.save('record/gan_train_record.npy', np.array(train_record))
+np.save('record/acgan_train_record.npy', np.array(train_record))

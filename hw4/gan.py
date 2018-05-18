@@ -6,7 +6,7 @@ assert DataManager and Encoder and Generator and Discriminator
 
 
 BATCH_SIZE=  128
-EPOCHS= 100
+EPOCHS= 200
 LATENT_DIM= 128
 GENERATOR_HIDDEN_CHANNEL = 128
 DISCRIMINATOR_HIDDEN_CHANNEL = 128
