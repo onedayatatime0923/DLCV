@@ -11,8 +11,8 @@ BATCH_SIZE=  64
 LATENT_DIM= 512
 LABEL_ID= (7,8)
 INPUT_DIR= './record'
-DATA_DIR = './data'
-OUTPUT_DIR= './output'
+DATA_DIR = sys.argv[1]
+OUTPUT_DIR= sys.argv[2]
 
 dm = DataManager(LATENT_DIM)
 train_shape, train_label_dim=dm.get_data('train', i_path=['{}/train'.format(DATA_DIR)], c_path= ['{}/train.csv'.format(DATA_DIR)],class_range= LABEL_ID, mode= 'vae', batch_size= BATCH_SIZE, shuffle=True)

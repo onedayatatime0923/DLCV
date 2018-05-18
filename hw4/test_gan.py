@@ -2,6 +2,7 @@
 from util import DataManager, Encoder, Generator ,Discriminator
 import torch
 import numpy as np
+import sys
 assert DataManager and Encoder and Generator and Discriminator
 
 
@@ -10,7 +11,7 @@ LATENT_DIM= 128
 GENERATOR_UPDATE_NUM= 1
 DISCRIMINATOR_UPDATE_NUM= 1
 INPUT_DIR= './record'
-OUTPUT_DIR= './output'
+OUTPUT_DIR= sys.argv[1]
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
 #train_shape =dm.get_data('train',i_path=['./data/train','./data/test'], mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)

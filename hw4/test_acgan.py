@@ -2,6 +2,7 @@
 from util import DataManager, Encoder, Generator ,Discriminator_Acgan
 import torch
 import numpy as np
+import sys
 assert DataManager and Encoder and Generator and Discriminator_Acgan
 
 
@@ -12,7 +13,7 @@ LABEL_ID= (7,11)
 GENERATOR_UPDATE_NUM= 1
 DISCRIMINATOR_UPDATE_NUM= 1
 INPUT_DIR= './record'
-OUTPUT_DIR= './output'
+OUTPUT_DIR= sys.argv[1]
 
 dm = DataManager(LATENT_DIM,DISCRIMINATOR_UPDATE_NUM,GENERATOR_UPDATE_NUM)
 #data_size, label_dim=dm.get_data('train', i_path=['./data/train','./data/test'], c_path= ['./data/train.csv','./data/test.csv'],class_range=LABEL_ID,mode= 'gan', batch_size= BATCH_SIZE, shuffle=True)

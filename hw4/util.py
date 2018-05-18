@@ -37,7 +37,7 @@ class DataManager():
             dummy_input= Variable( torch.rand(1, input_shape).cuda())
         else: raise ValueError('Wrong input_shape')
         self.writer.add_graph(nn.Sequential(*model), (dummy_input, ))
-    def get_data(self,name, i_path, c_path= None, class_range=None, mode= 'acgan',batch_size= 128, shuffle=False):
+    def get_data(self,name, i_path, c_path= None, class_range=None, mode= 'gan',batch_size= 128, shuffle=False):
         x=[]
         for p in i_path:
             file_list = [file for file in os.listdir(p) if file.endswith('.png')]
