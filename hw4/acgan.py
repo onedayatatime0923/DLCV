@@ -8,7 +8,7 @@ assert DataManager and Encoder and Generator and Discriminator_Acgan
 BATCH_SIZE=  128
 EPOCHS= 200
 LATENT_DIM= 128
-LABEL_ID= (9,10)
+LABEL_ID= (7,11)
 GENERATOR_HIDDEN_CHANNEL = 128
 DISCRIMINATOR_HIDDEN_CHANNEL = 128
 GENERATOR_UPDATE_NUM= 1
@@ -25,6 +25,7 @@ discriminator= Discriminator_Acgan( data_size[0], DISCRIMINATOR_HIDDEN_CHANNEL, 
 optimizer= [generator.optimizer( lr=1E-4, betas= (0.5,0.999)),discriminator.optimizer( lr=1E-4, betas= (0.5,0.999))]
 print(generator)
 print(discriminator)
+input()
 #dm.tb_graph((generator,discriminator), LATENT_DIM)
 
 train_record=[]
