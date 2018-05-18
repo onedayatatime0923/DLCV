@@ -10,7 +10,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 import time, os, math
-from tensorboardX import SummaryWriter 
+#from tensorboardX import SummaryWriter 
 import matplotlib.pyplot as plt
 assert torch and nn and Variable and F and Dataset and DataLoader
 assert time and np
@@ -28,7 +28,7 @@ class DataManager():
     def tb_setting(self, path):
         for f in os.listdir(path): 
             os.remove('{}/{}'.format(path,f))
-        self.writer = SummaryWriter(path)
+        #self.writer = SummaryWriter(path)
     def tb_graph(self, model, input_shape):
         if isinstance(input_shape, tuple):
             dummy_input= Variable( torch.rand(1, *input_shape).cuda())

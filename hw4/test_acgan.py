@@ -6,7 +6,7 @@ import sys
 assert DataManager and Encoder and Generator and Discriminator_Acgan
 
 
-torch.manual_seed(6)
+torch.manual_seed(66)
 BATCH_SIZE=  128
 EPOCHS= 100
 LATENT_DIM= 128
