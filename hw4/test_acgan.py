@@ -8,7 +8,7 @@ assert DataManager and Encoder and Generator and Discriminator_Acgan
 BATCH_SIZE=  128
 EPOCHS= 100
 LATENT_DIM= 128
-LABEL_ID= (7,8)
+LABEL_ID= (9,10)
 GENERATOR_UPDATE_NUM= 1
 DISCRIMINATOR_UPDATE_NUM= 1
 INPUT_DIR= './record'
