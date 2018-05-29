@@ -177,13 +177,16 @@ class ResNet50_feature(nn.Module):
 
 
 class ImageDataset(Dataset):
-    def __init__(self, image, label):
+    def __init__(self, image, label, max_len= 100):
         self.image = image
         self.label = label
-        self.max_len = max([len(x) for x in image])
+        self.max_len = max_len #max([len(x) for x in image])
     def __getitem__(self, i):
         image= torch.from_numpy(self.image[i]).permute(0,3,1,2).float()
-        x= torch.cat([image,torch.zeros(self.max_len- image.size(0), *image.size()[1:])],0)
+        if len(image)< self.max_len:
+            x = torch.cat([image,torch.zeros(self.max_len- image.size(0), *image.size()[1:])],0)
+        else:
+            x = image[:self.max_len]
         y= torch.LongTensor([self.label[i]])
         return x, image.size(0), y
     def __len__(self):
