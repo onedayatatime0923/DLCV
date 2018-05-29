@@ -84,14 +84,12 @@ class DataManager():
         start= time.time()
         model.train()
         
-        
         optimizer = torch.optim.Adam(model.parameters())
         criterion= nn.CrossEntropyLoss()
         total_loss= 0
         total_correct= 0
         
         data_size= len(dataloader.dataset)
-        
         for b, (x, i, y) in enumerate(dataloader):
             batch_index=b+1
             x, i, y= Variable(x).cuda(), Variable(i).cuda() , Variable(y).cuda().squeeze(1)
@@ -118,7 +116,36 @@ class DataManager():
         if self.writer != None:
             self.writer.add_scalar('Loss', float(loss)/ data_size, epoch)
             self.writer.add_scalar('Accu',  100.*correct/ data_size, epoch)
-        print('-'*80)
+        return float(loss)/ data_size, 100. * total_correct/ data_size
+    def val(self,model,dataloader, epoch):
+        start= time.time()
+        model.eval()
+        
+        criterion= nn.CrossEntropyLoss()
+        total_loss= 0
+        total_correct= 0
+        
+        data_size= len(dataloader.dataset)
+        for b, (x, i, y) in enumerate(dataloader):
+            batch_index=b+1
+            x, i, y= Variable(x).cuda(), Variable(i).cuda() , Variable(y).cuda().squeeze(1)
+            output= model(x,i)
+            loss = criterion(output,y)
+            # loss
+            total_loss+= float(loss)* len(x)
+            # accu
+            pred = output.data.argmax(1) # get the index of the max log-probability
+            correct = pred.eq(y.data).long().cpu().sum()
+            total_correct += correct
+            print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.6f}% | Time: {}  '.format(
+                        epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
+                        float(loss), 100.*correct/len(x),
+                        self.timeSince(start, batch_index*len(i)/ data_size)),end='')
+        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.6f}% | Time: {}  '.format(
+                    epoch , data_size, data_size, 100.,
+                    float(total_loss)/ data_size, 100.*total_correct/ data_size,
+                    self.timeSince(start, 1)))
+
         return float(loss)/ data_size, 100. * total_correct/ data_size
     def timeSince(self,since, percent):
         now = time.time()
