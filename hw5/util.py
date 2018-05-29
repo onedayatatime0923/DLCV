@@ -37,7 +37,7 @@ class DataManager():
 
         od = collections.OrderedDict(sorted(result.items()))
         return od
-    def readShortVideo(self,video_path, video_category, video_name, downsample_factor=12, rescale_factor=4):
+    def readShortVideo(self,video_path, video_category, video_name, downsample_factor=12, rescale_factor=1):
         '''
         @param video_path: video directory
         @param video_category: video category (see csv files)
@@ -94,7 +94,7 @@ class DataManager():
         
         for b, (x, i, y) in enumerate(dataloader):
             batch_index=b+1
-            x, y= Variable(x).cuda(), Variable(y).cuda() 
+            x, i, y= Variable(x).cuda(), Variable(i).cuda() , Variable(y).cuda().squeeze(1)
             output= model(x,i)
             loss = criterion(output,y)
             optimizer.zero_grad()
@@ -103,7 +103,7 @@ class DataManager():
             # loss
             total_loss+= float(loss)* len(x)
             # accu
-            pred = output.data.argmax(1).unsqueeze(1) # get the index of the max log-probability
+            pred = output.data.argmax(1) # get the index of the max log-probability
             correct = pred.eq(y.data).long().cpu().sum()
             total_correct += correct
 
@@ -113,13 +113,13 @@ class DataManager():
                         self.timeSince(start, batch_index*len(i)/ data_size)),end='')
         print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.6f}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
-                    float(loss)/ data_size, 100.*correct/ data_size,
+                    float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
         if self.writer != None:
             self.writer.add_scalar('Loss', float(loss)/ data_size)
             self.writer.add_scalar('Accu',  100.*correct/ data_size)
         print('-'*80)
-        return total_loss[0]/ batch_index, total_loss[1]/ batch_index
+        return float(loss)/ data_size, 100. * total_correct/ data_size
     def timeSince(self,since, percent):
         now = time.time()
         s = now - since
@@ -145,18 +145,18 @@ class ResNet50_feature(nn.Module):
         self.layer4 = original_model.layer4
         self.avgpool = original_model.avgpool
         self.classifier = nn.Sequential(
-                nn.Linear( hidden_dim,hidden_dim),
+                nn.Linear( 16384,hidden_dim),
                 nn.SELU(),
                 nn.Linear( hidden_dim,label_dim))
     def forward(self, x, i):
-        sort_index= sorted(range(len(i)), key=lambda k: i[k])
+        sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
         sort_x= torch.index_select(x, 0, sort_index)
-        sort_i= sorted(i)
-        print(sort_index)
-        print(sort_x.size())
-        print(sort_i)
-        z= nn.utils.rnn.pack_padded_sequence(sort_x, sort_i, batch_first=True)
-        z = self.conv1(z)
+        sort_i= torch.index_select(i, 0, sort_index)
+        packed_data= nn.utils.rnn.pack_padded_sequence(sort_x, sort_i, batch_first=True)
+        #print(sort_i)
+        #print(sort_x.size())
+        #print(packed_data.data.size())
+        z = self.conv1(packed_data.data)
         z = self.bn1(z)
         z = self.relu(z)
         z = self.maxpool(z)
@@ -168,7 +168,10 @@ class ResNet50_feature(nn.Module):
 
         z = self.avgpool(z)
         z = z.view(z.size(0), -1)
-        z = self.classifier(z)
+        packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
+        z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
+        z = self.classifier(z[0])
+        z = torch.sum(z,1)/ sort_i.unsqueeze(1).repeat(1,z.size(2)).float()
         
         return z
 
@@ -179,17 +182,9 @@ class ImageDataset(Dataset):
         self.label = label
         self.max_len = max([len(x) for x in image])
     def __getitem__(self, i):
-        print(i)
-        image= torch.from_numpy(self.image[i]).permute(0,3,1,2)
-        print(image.size())
-        print(self.max_len- image.size(0))
-        print(image.size()[1:])
-        print(torch.zeros(self.max_len- image.size(0), *image.size()[1:]))
+        image= torch.from_numpy(self.image[i]).permute(0,3,1,2).float()
         x= torch.cat([image,torch.zeros(self.max_len- image.size(0), *image.size()[1:])],0)
-        y= torch.from_numpy(self.label[i])
-        print(x.size())
-        print(y.size())
-        input()
+        y= torch.LongTensor([self.label[i]])
         return x, image.size(0), y
     def __len__(self):
         return len(self.image)
