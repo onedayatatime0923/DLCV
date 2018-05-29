@@ -209,7 +209,6 @@ class ResNet50_feature(nn.Module):
         
         return z
 
-
 class ImageDataset(Dataset):
     def __init__(self, image, label, max_len= 15):
         self.image = image
