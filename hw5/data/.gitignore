@@ -1,3 +1,5 @@
 
 trainx.npy
 trainy.npy
+valx.npy
+valy.npy
