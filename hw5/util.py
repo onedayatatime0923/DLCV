@@ -211,7 +211,7 @@ class ResNet50_feature(nn.Module):
 
 
 class ImageDataset(Dataset):
-    def __init__(self, image, label, max_len= 20):
+    def __init__(self, image, label, max_len= 15):
         self.image = image
         self.label = label
         self.max_len = max_len #max([len(x) for x in image])
