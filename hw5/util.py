@@ -2,14 +2,25 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
+import torch.nn.functional as F
 from torch.utils.data import Dataset,DataLoader
-import torchvision
 from torchvision import models
-import collections, os, skimage.transform, csv
+from tensorboardX import SummaryWriter 
+import collections, os, skimage.transform, csv, time, math
 from skvideo import io
-assert torch and Dataset and DataLoader
+assert torch and Dataset and DataLoader and F
 
 class DataManager():
+    def __init__(self, path=None):
+        if path== None: self.writer=None
+        else: self.tb_setting(path)
+    def tb_setting(self, directory):
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        for f in os.listdir(directory): 
+            os.remove('{}/{}'.format(directory,f))
+        self.writer = SummaryWriter(directory)
     def getVideoList(self,data_path):
         '''
         @param data_path: ground-truth file path (csv files)
@@ -26,7 +37,7 @@ class DataManager():
 
         od = collections.OrderedDict(sorted(result.items()))
         return od
-    def readShortVideo(self,video_path, video_category, video_name, downsample_factor=12, rescale_factor=1):
+    def readShortVideo(self,video_path, video_category, video_name, downsample_factor=12, rescale_factor=4):
         '''
         @param video_path: video directory
         @param video_category: video category (see csv files)
@@ -51,25 +62,77 @@ class DataManager():
                 continue
 
         return np.array(frames).astype(np.uint8)
-    def get_data(self, video_path, tag_path, save_path= None):
-        if save_path != None:
-            if os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
+    def get_data(self, video_path, tag_path, save_path= None, batch_size=32, shuffle= True):
+        if save_path != None and os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
                 x= np.load(save_path[0])
                 y= np.load(save_path[1])
-                return x,y
+                return DataLoader(ImageDataset(x,y), batch_size=batch_size, shuffle=shuffle)
         file_dict=(self.getVideoList(tag_path))
         x, y=[], []
         for i in range(len(file_dict['Video_index'])):
             x.append(self.readShortVideo(video_path, file_dict['Video_category'][i],file_dict['Video_name'][i]))
             y.append(int(file_dict['Action_labels'][i]))
             print('\rreading image from {}...{}'.format(video_path,i),end='')
+        x= np.array(x)
+        y= np.array(y)
         print('\rreading image from {}...finished'.format(video_path))
         if save_path != None:
-            np.save(save_path[0],np.array(x))
-            np.save(save_path[1],np.array(y))
+            np.save(save_path[0],x)
+            np.save(save_path[1],y)
+        return DataLoader(ImageDataset(x,y), batch_size=batch_size, shuffle=shuffle)
+    def train(self, model, dataloader, epoch):
+        start= time.time()
+        model.train()
+        
+        
+        optimizer = torch.optim.Adam(model.parameters())
+        criterion= nn.CrossEntropyLoss()
+        total_loss= 0
+        total_correct= 0
+        
+        data_size= len(dataloader.dataset)
+        
+        for b, (x, i, y) in enumerate(dataloader):
+            batch_index=b+1
+            x, y= Variable(x).cuda(), Variable(y).cuda() 
+            output= model(x,i)
+            loss = criterion(output,y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            # loss
+            total_loss+= float(loss)* len(x)
+            # accu
+            pred = output.data.argmax(1).unsqueeze(1) # get the index of the max log-probability
+            correct = pred.eq(y.data).long().cpu().sum()
+            total_correct += correct
+
+            print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.6f}% | Time: {}  '.format(
+                        epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
+                        float(loss), 100.*correct/len(x),
+                        self.timeSince(start, batch_index*len(i)/ data_size)),end='')
+        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.6f}% | Time: {}  '.format(
+                    epoch , data_size, data_size, 100.,
+                    float(loss)/ data_size, 100.*correct/ data_size,
+                    self.timeSince(start, 1)))
+        if self.writer != None:
+            self.writer.add_scalar('Loss', float(loss)/ data_size)
+            self.writer.add_scalar('Accu',  100.*correct/ data_size)
+        print('-'*80)
+        return total_loss[0]/ batch_index, total_loss[1]/ batch_index
+    def timeSince(self,since, percent):
+        now = time.time()
+        s = now - since
+        es = s / (percent)
+        rs = es - s
+        return '%s (- %s)' % (self.asMinutes(s), self.asMinutes(rs))
+    def asMinutes(self,s):
+        m = math.floor(s / 60)
+        s -= m * 60
+        return '%dm %ds' % (m, s)
 
 class ResNet50_feature(nn.Module):
-    def __init__(self):
+    def __init__(self, hidden_dim, label_dim):
         super(ResNet50_feature, self).__init__()
         original_model = models.resnet50(pretrained=True)
         self.conv1 = original_model.conv1
@@ -81,46 +144,52 @@ class ResNet50_feature(nn.Module):
         self.layer3 = original_model.layer3
         self.layer4 = original_model.layer4
         self.avgpool = original_model.avgpool
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
+        self.classifier = nn.Sequential(
+                nn.Linear( hidden_dim,hidden_dim),
+                nn.SELU(),
+                nn.Linear( hidden_dim,label_dim))
+    def forward(self, x, i):
+        sort_index= sorted(range(len(i)), key=lambda k: i[k])
+        sort_x= torch.index_select(x, 0, sort_index)
+        sort_i= sorted(i)
+        print(sort_index)
+        print(sort_x.size())
+        print(sort_i)
+        z= nn.utils.rnn.pack_padded_sequence(sort_x, sort_i, batch_first=True)
+        z = self.conv1(z)
+        z = self.bn1(z)
+        z = self.relu(z)
+        z = self.maxpool(z)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        z = self.layer1(z)
+        z = self.layer2(z)
+        z = self.layer3(z)
+        z = self.layer4(z)
 
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        return x
+        z = self.avgpool(z)
+        z = z.view(z.size(0), -1)
+        z = self.classifier(z)
+        
+        return z
 
 
 class ImageDataset(Dataset):
     def __init__(self, image, label):
         self.image = image
         self.label = label
+        self.max_len = max([len(x) for x in image])
     def __getitem__(self, i):
-        index= i// self.flip_n 
-        flip = bool( i % self.flip_n )
-
-        if self.mode=='vae':
-            if flip == True: x= np.flip(self.image[index],2).copy()
-            else: x= self.image[index]
-            x=torch.FloatTensor(x)/255
-            if self.rotate: x=torchvision.transforms.RandomRotation(5)
-            if not isinstance(self.c, np.ndarray) : return x
-            c=torch.FloatTensor(self.c[index][:])
-            return x, c
-        elif self.mode=='gan':
-            if flip == True: x= np.flip(self.image[index],2).copy()
-            else: x= self.image[index]
-            x=(torch.FloatTensor(x)- 127.5)/127.5
-            if self.rotate>0: x=torchvision.transforms.RandomRotation(5)
-            if not isinstance(self.c, np.ndarray) : return x
-            c=torch.FloatTensor(self.c[index][:])
-            return x, c
-        else: raise ValueError('Wrong mode.')
+        print(i)
+        image= torch.from_numpy(self.image[i]).permute(0,3,1,2)
+        print(image.size())
+        print(self.max_len- image.size(0))
+        print(image.size()[1:])
+        print(torch.zeros(self.max_len- image.size(0), *image.size()[1:]))
+        x= torch.cat([image,torch.zeros(self.max_len- image.size(0), *image.size()[1:])],0)
+        y= torch.from_numpy(self.label[i])
+        print(x.size())
+        print(y.size())
+        input()
+        return x, image.size(0), y
     def __len__(self):
-        return len(self.image)*self.flip_n
+        return len(self.image)
