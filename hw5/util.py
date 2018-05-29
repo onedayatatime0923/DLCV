@@ -189,6 +189,6 @@ class ImageDataset(Dataset):
         else:
             x = image[:self.max_len]
         y= torch.LongTensor([self.label[i]])
-        return x, image.size(0), y
+        return x, x.size(0), y
     def __len__(self):
         return len(self.image)
