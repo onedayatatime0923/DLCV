@@ -3,7 +3,7 @@ from util import DataManager, ResNet50_feature
 
 
 EPOCH = 32
-BATCH_SIZE = 4
+BATCH_SIZE = 2
 HIDDEN_SIZE = 1024
 LABEL_DIM = 11
 TENSORBOARD_DIR= './runs/train'

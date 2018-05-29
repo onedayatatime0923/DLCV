@@ -116,8 +116,8 @@ class DataManager():
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
         if self.writer != None:
-            self.writer.add_scalar('Loss', float(loss)/ data_size)
-            self.writer.add_scalar('Accu',  100.*correct/ data_size)
+            self.writer.add_scalar('Loss', float(loss)/ data_size, epoch)
+            self.writer.add_scalar('Accu',  100.*correct/ data_size, epoch)
         print('-'*80)
         return float(loss)/ data_size, 100. * total_correct/ data_size
     def timeSince(self,since, percent):
@@ -153,6 +153,7 @@ class ResNet50_feature(nn.Module):
         sort_x= torch.index_select(x, 0, sort_index)
         sort_i= torch.index_select(i, 0, sort_index)
         packed_data= nn.utils.rnn.pack_padded_sequence(sort_x, sort_i, batch_first=True)
+        #print(i)
         #print(sort_i)
         #print(sort_x.size())
         #print(packed_data.data.size())
@@ -171,14 +172,17 @@ class ResNet50_feature(nn.Module):
         #print(z.size())
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
+        #print(z[1])
         z = self.classifier(z[0])
         z = torch.sum(z,1)/ sort_i.unsqueeze(1).repeat(1,z.size(2)).float()
+        #print(sort_i)
+        #input()
         
         return z
 
 
 class ImageDataset(Dataset):
-    def __init__(self, image, label, max_len= 10):
+    def __init__(self, image, label, max_len= 20):
         self.image = image
         self.label = label
         self.max_len = max_len #max([len(x) for x in image])
