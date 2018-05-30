@@ -259,7 +259,7 @@ class Vgg16_feature(nn.Module):
         #input()
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
         #print(z[0].size())
-        z = torch.sum(z[0],1)/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
+        z = torch.sum(z[0],1)#/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
         #print(z.size())
         #print(sort_i)
         #input()

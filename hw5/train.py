@@ -4,7 +4,7 @@ assert ResNet50_feature
 
 
 EPOCH =200
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 HIDDEN_SIZE = 2048
 LABEL_DIM = 11
 DROPOUT = 0.1
