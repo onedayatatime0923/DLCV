@@ -161,7 +161,7 @@ class DataManager():
         return '%dm %ds' % (m, s)
 
 class ResNet50_feature(nn.Module):
-    def __init__(self, hidden_dim, label_dim, dropout=0.5):
+    def __init__(self, hidden_dim, label_dim, dropout=0.2):
         super(ResNet50_feature, self).__init__()
         original_model = models.resnet50(pretrained=True)
         self.dropout= nn.Dropout()
