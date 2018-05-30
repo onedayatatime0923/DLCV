@@ -233,8 +233,7 @@ class Vgg16_feature(nn.Module):
                 nn.Linear( hidden_dim,hidden_dim),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
-                nn.Linear( hidden_dim,label_dim),
-                nn.Softmax(1))
+                nn.Linear( hidden_dim,label_dim))
     def forward(self, x, i):
         sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
         sort_x= torch.index_select(x, 0, sort_index)
