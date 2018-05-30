@@ -114,9 +114,9 @@ class DataManager():
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
         if self.writer != None:
-            self.writer.add_scalar('Train Loss', float(loss)/ data_size, epoch)
-            self.writer.add_scalar('Train Accu',  100.*correct/ data_size, epoch)
-        return float(loss)/ data_size, 100. * total_correct/ data_size
+            self.writer.add_scalar('Train Loss', float(total_loss)/ data_size, epoch)
+            self.writer.add_scalar('Train Accu',  100.*total_correct/ data_size, epoch)
+        return float(total_loss)/ data_size, 100. * total_correct/ data_size
     def val(self,model,dataloader, epoch):
         start= time.time()
         model.eval()
@@ -146,9 +146,9 @@ class DataManager():
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
         if self.writer != None:
-            self.writer.add_scalar('Val Loss', float(loss)/ data_size, epoch)
-            self.writer.add_scalar('Val Accu',  100.*correct/ data_size, epoch)
-        return float(loss)/ data_size, 100. * total_correct/ data_size
+            self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
+            self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
+        return float(total_loss)/ data_size, 100. * total_correct/ data_size
     def timeSince(self,since, percent):
         now = time.time()
         s = now - since
