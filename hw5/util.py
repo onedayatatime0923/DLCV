@@ -225,11 +225,8 @@ class Vgg16_feature(nn.Module):
         original_model = models.vgg16(pretrained=True)
         self.dropout= nn.Dropout(dropout)
         self.features = original_model.features
-        self.classifier1 = nn.Sequential(
-                nn.Linear( 35840,25088),
-                original_model.classifier)
         self.classifier2 = nn.Sequential(
-                nn.Linear( 1000,hidden_dim),
+                nn.Linear( 35840,hidden_dim),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,hidden_dim),
@@ -250,7 +247,6 @@ class Vgg16_feature(nn.Module):
         #print(packed_data.data.size())
         z = self.features(packed_data.data)
         z = z.view(z.size(0), -1)
-        z = self.classifier1(z)
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
         #print(z[0].size())
@@ -259,11 +255,15 @@ class Vgg16_feature(nn.Module):
         #print(sort_i)
         #input()
         z = self.classifier2(z)
+        sort_index_reverse= torch.cuda.LongTensor(sorted(range(len(sort_index)), key=lambda k: sort_index[k]))
+        z = torch.index_select(z , 0, sort_index_reverse)
+        #print(torch.index_select(sort_i, 0, sort_index_reverse))
+        #input()
         
         return z
 
 class ImageDataset(Dataset):
-    def __init__(self, image, label, max_len= 15):
+    def __init__(self, image, label, max_len= 10):
         self.image = image
         self.label = label
         self.max_len = max_len #max([len(x) for x in image])
