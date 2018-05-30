@@ -178,7 +178,8 @@ class ResNet50_feature(nn.Module):
                 nn.Linear( 16384,hidden_dim),
                 nn.SELU(),
                 nn.Dropout(),
-                nn.Linear( hidden_dim,label_dim))
+                nn.Linear( hidden_dim,label_dim),
+                nn.Softmax(1))
     def forward(self, x, i):
         sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
         sort_x= torch.index_select(x, 0, sort_index)
