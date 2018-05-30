@@ -4,7 +4,7 @@ from util import DataManager, ResNet50_feature
 
 EPOCH =200
 BATCH_SIZE = 2
-HIDDEN_SIZE = 1024
+HIDDEN_SIZE = 4096
 LABEL_DIM = 11
 TENSORBOARD_DIR= './runs/train'
 

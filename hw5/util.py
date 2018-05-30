@@ -105,11 +105,11 @@ class DataManager():
             correct = pred.eq(y.data).long().cpu().sum()
             total_correct += correct
 
-            print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.6f}% | Time: {}  '.format(
+            print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
                         epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
                         float(loss), 100.*correct/len(x),
                         self.timeSince(start, batch_index*len(i)/ data_size)),end='')
-        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.6f}% | Time: {}  '.format(
+        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
@@ -137,11 +137,11 @@ class DataManager():
             pred = output.data.argmax(1) # get the index of the max log-probability
             correct = pred.eq(y.data).long().cpu().sum()
             total_correct += correct
-            print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.6f}% | Time: {}  '.format(
+            print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
                         epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
                         float(loss), 100.*correct/len(x),
                         self.timeSince(start, batch_index*len(i)/ data_size)),end='')
-        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.6f}% | Time: {}  '.format(
+        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
