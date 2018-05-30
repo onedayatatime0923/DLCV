@@ -37,7 +37,7 @@ class DataManager():
 
         od = collections.OrderedDict(sorted(result.items()))
         return od
-    def readShortVideo(self,video_path, video_category, video_name, downsample_factor=48, rescale_factor=1):
+    def readShortVideo(self,video_path, video_category, video_name, downsample_factor=12, rescale_factor=1):
         '''
         @param video_path: video directory
         @param video_category: video category (see csv files)
