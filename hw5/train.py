@@ -5,7 +5,7 @@ assert ResNet50_feature
 
 EPOCH =200
 BATCH_SIZE = 1
-HIDDEN_SIZE = 1024
+HIDDEN_SIZE = 2048
 LABEL_DIM = 11
 DROPOUT = 0.1
 TENSORBOARD_DIR= './runs/train'
