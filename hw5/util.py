@@ -213,7 +213,44 @@ class ResNet50_feature(nn.Module):
         z = torch.sum(z[0],1)/ sort_i.unsqueeze(1).repeat(1,z[0].size(2)).float()
         z = self.classifier(z)
         #print(z.size())
+        #print(sort_i)
         #input()
+        
+        return z
+class Vgg16_feature(nn.Module):
+    def __init__(self, hidden_dim, label_dim, dropout=0.1):
+        super(Vgg16_feature, self).__init__()
+        original_model = models.vgg16(pretrained=True)
+        self.dropout= nn.Dropout(dropout)
+        self.features = original_model.features
+        self.classifier = nn.Sequential(
+                nn.Linear( 35840,hidden_dim),
+                nn.ReLU(inplace=True),
+                nn.Dropout(dropout),
+                nn.Linear( hidden_dim,hidden_dim),
+                nn.ReLU(inplace=True),
+                nn.Dropout(dropout),
+                nn.Linear( hidden_dim,label_dim),
+                nn.Softmax(1))
+    def forward(self, x, i):
+        sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
+        sort_x= torch.index_select(x, 0, sort_index)
+        sort_i= torch.index_select(i, 0, sort_index)
+        packed_data= nn.utils.rnn.pack_padded_sequence(sort_x, sort_i, batch_first=True)
+        #print(i)
+        #print(sort_i)
+        #print(sort_x.size())
+        #print(packed_data.data.size())
+        z = self.features(packed_data.data)
+        z = self.dropout(z)
+        z = z.view(z.size(0), -1)
+        #print(z.size())
+        packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
+        z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
+        #print(z[0].size())
+        z = torch.sum(z[0],1)/ sort_i.unsqueeze(1).repeat(1,z[0].size(2)).float()
+        #print(z.size())
+        z = self.classifier(z)
         #print(sort_i)
         #input()
         
