@@ -178,8 +178,10 @@ class ResNet50_feature(nn.Module):
                 nn.Linear( 16384,hidden_dim),
                 nn.SELU(),
                 nn.Dropout(),
-                nn.Linear( hidden_dim,label_dim),
-                nn.Softmax(1))
+                nn.Linear( hidden_dim,hidden_dim),
+                nn.SELU(),
+                nn.Dropout(),
+                nn.Linear( hidden_dim,label_dim))
     def forward(self, x, i):
         sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
         sort_x= torch.index_select(x, 0, sort_index)
@@ -258,12 +260,12 @@ class Vgg16_feature(nn.Module):
         return z
 
 class ImageDataset(Dataset):
-    def __init__(self, image, label, max_len= 10):
+    def __init__(self, image, label, max_len= 15):
         self.image = image
         self.label = label
         self.max_len = max_len #max([len(x) for x in image])
     def __getitem__(self, i):
-        image= torch.from_numpy(self.image[i]).permute(0,3,1,2).float()
+        image= torch.from_numpy(self.image[i]).permute(0,3,1,2).float()/255
         if len(image)< self.max_len:
             x = torch.cat([image,torch.zeros(self.max_len- image.size(0), *image.size()[1:])],0)
         else:
