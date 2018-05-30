@@ -230,6 +230,9 @@ class Vgg16_feature(nn.Module):
                 nn.Linear( hidden_dim,hidden_dim),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
+                nn.Linear( hidden_dim,hidden_dim),
+                nn.ReLU(inplace=True),
+                nn.Dropout(dropout),
                 nn.Linear( hidden_dim,label_dim),
                 nn.Softmax(1))
     def forward(self, x, i):
