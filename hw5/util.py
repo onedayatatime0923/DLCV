@@ -184,7 +184,7 @@ class ResNet50_feature(nn.Module):
         sort_x= torch.index_select(x, 0, sort_index)
         sort_i= torch.index_select(i, 0, sort_index)
         packed_data= nn.utils.rnn.pack_padded_sequence(sort_x, sort_i, batch_first=True)
-        print(i)
+        #print(i)
         #print(sort_i)
         #print(sort_x.size())
         #print(packed_data.data.size())
@@ -212,14 +212,14 @@ class ResNet50_feature(nn.Module):
         z = torch.sum(z[0],1)/ sort_i.unsqueeze(1).repeat(1,z[0].size(2)).float()
         z = self.classifier(z)
         #print(z.size())
-        input()
+        #input()
         #print(sort_i)
         #input()
         
         return z
 
 class ImageDataset(Dataset):
-    def __init__(self, image, label, max_len= 10):
+    def __init__(self, image, label, max_len= 15):
         self.image = image
         self.label = label
         self.max_len = max_len #max([len(x) for x in image])
