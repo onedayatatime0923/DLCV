@@ -197,10 +197,7 @@ class ResNet50_feature(nn.Module):
                 nn.Dropout(),
                 nn.Linear( hidden_dim,label_dim))
     def forward(self, x, i):
-        sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
-        sort_x= torch.index_select(x, 0, sort_index)
-        sort_i= torch.index_select(i, 0, sort_index)
-        packed_data= nn.utils.rnn.pack_padded_sequence(sort_x, sort_i, batch_first=True)
+        packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
         #print(i)
         #print(sort_i)
         #print(sort_x.size())
@@ -226,7 +223,7 @@ class ResNet50_feature(nn.Module):
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
         #print(z[0].size())
-        z = torch.sum(z[0],1)/ sort_i.unsqueeze(1).repeat(1,z[0].size(2)).float()
+        z = torch.sum(z[0],1)/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
         z = self.classifier(z)
         #print(z.size())
         #print(sort_i)
@@ -287,11 +284,12 @@ class ImageDataset(Dataset):
     def __len__(self):
         return len(self.image)
 class ImageDataLoader():
-    def __init__(self, image, label, batch_size, shuffle):
+    def __init__(self, image, label, batch_size, shuffle, max_len= 20):
         self.image = image
         self.label = label
         self.batch_size = batch_size
         self.shuffle = shuffle
+        self.max_len = max_len
     def __iter__(self):
         self.index = list(range(len(self.label)))
         if self.shuffle: random.shuffle(self.index)
@@ -303,7 +301,7 @@ class ImageDataLoader():
             raise StopIteration
         x,i,y=[], [], []
         for j in range(self.start_index,self.end_index):
-            x.append(torch.FloatTensor(self.image[self.index[j]]).permute(0,3,1,2).float()/255)
+            x.append(torch.FloatTensor(self.image[self.index[j]])[:self.max_len].permute(0,3,1,2).float()/255)
             i.append(len(self.image[self.index[j]]))
             y.append(self.label[self.index[j]])
         sort_index= torch.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
