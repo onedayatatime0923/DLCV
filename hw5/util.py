@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset,DataLoader
 from torchvision import models
 from tensorboardX import SummaryWriter 
-import collections, os, skimage.transform, csv, time, math
+import collections, os, skimage.transform, csv, time, math, random
 from skvideo import io
 assert torch and Dataset and DataLoader and F
 
@@ -66,7 +66,8 @@ class DataManager():
         if save_path != None and os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
                 x= np.load(save_path[0])
                 y= np.load(save_path[1])
-                return DataLoader(ImageDataset(x,y), batch_size=batch_size, shuffle=shuffle)
+                return ImageDataLoader(x,y, batch_size=batch_size, shuffle=shuffle)
+
         file_dict=(self.getVideoList(tag_path))
         x, y=[], []
         for i in range(len(file_dict['Video_index'])):
@@ -79,36 +80,42 @@ class DataManager():
         if save_path != None:
             np.save(save_path[0],x)
             np.save(save_path[1],y)
-        return DataLoader(ImageDataset(x,y), batch_size=batch_size, shuffle=shuffle)
-    def train(self, model, dataloader, epoch):
+        return ImageDataLoader(x,y, batch_size=batch_size, shuffle=shuffle)
+    def train(self, model, dataloader, epoch, print_every= 10):
         start= time.time()
         model.train()
         
         optimizer = torch.optim.Adam(model.parameters())
         criterion= nn.CrossEntropyLoss()
         total_loss= 0
+        batch_loss= 0
         total_correct= 0
+        batch_correct= 0
         
-        data_size= len(dataloader.dataset)
+        data_size= len(dataloader)
         for b, (x, i, y) in enumerate(dataloader):
             batch_index=b+1
-            x, i, y= Variable(x).cuda(), Variable(i).cuda() , Variable(y).cuda().squeeze(1)
+            x, i, y= Variable(x).cuda(), Variable(i).cuda() , Variable(y).cuda()
             output= model(x,i)
             loss = criterion(output,y)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             # loss
+            batch_loss+= float(loss)
             total_loss+= float(loss)* len(x)
             # accu
             pred = output.data.argmax(1) # get the index of the max log-probability
             correct = pred.eq(y.data).long().cpu().sum()
+            batch_correct += correct/ len(x)
             total_correct += correct
-
-            print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
-                        epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
-                        float(loss), 100.*correct/len(x),
-                        self.timeSince(start, batch_index*len(i)/ data_size)),end='')
+            if batch_index% print_every== 0:
+                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
+                            batch_loss/ print_every, 100.* batch_correct/ print_every,
+                            self.timeSince(start, batch_index*len(i)/ data_size)),end='')
+                batch_loss= 0
+                batch_correct= 0
         print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
@@ -117,30 +124,37 @@ class DataManager():
             self.writer.add_scalar('Train Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Train Accu',  100.*total_correct/ data_size, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
-    def val(self,model,dataloader, epoch):
+    def val(self,model,dataloader, epoch, print_every= 10):
         start= time.time()
         model.eval()
         
         criterion= nn.CrossEntropyLoss()
         total_loss= 0
+        batch_loss= 0
         total_correct= 0
+        batch_correct= 0
         
-        data_size= len(dataloader.dataset)
+        data_size= len(dataloader)
         for b, (x, i, y) in enumerate(dataloader):
             batch_index=b+1
-            x, i, y= Variable(x).cuda(), Variable(i).cuda() , Variable(y).cuda().squeeze(1)
+            x, i, y= Variable(x).cuda(), Variable(i).cuda() , Variable(y).cuda()
             output= model(x,i)
             loss = criterion(output,y)
             # loss
+            batch_loss+= float(loss)
             total_loss+= float(loss)* len(x)
             # accu
             pred = output.data.argmax(1) # get the index of the max log-probability
             correct = pred.eq(y.data).long().cpu().sum()
+            batch_correct += correct/ len(x)
             total_correct += correct
-            print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
-                        epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
-                        float(loss), 100.*correct/len(x),
-                        self.timeSince(start, batch_index*len(i)/ data_size)),end='')
+            if batch_index% print_every== 0:
+                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
+                            batch_loss/ print_every, 100.* batch_correct/ print_every,
+                            self.timeSince(start, batch_index*len(i)/ data_size)),end='')
+                batch_loss= 0
+                batch_correct= 0
         print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
@@ -237,10 +251,7 @@ class Vgg16_feature(nn.Module):
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,label_dim))
     def forward(self, x, i):
-        sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
-        sort_x= torch.index_select(x, 0, sort_index)
-        sort_i= torch.index_select(i, 0, sort_index)
-        packed_data= nn.utils.rnn.pack_padded_sequence(sort_x, sort_i, batch_first=True)
+        packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
         #print(i)
         #print(sort_i)
         #print(sort_x.size())
@@ -250,13 +261,11 @@ class Vgg16_feature(nn.Module):
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
         #print(z[0].size())
-        z = torch.sum(z[0],1)/ sort_i.unsqueeze(1).repeat(1,z[0].size(2)).float()
+        z = torch.sum(z[0],1)/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
         #print(z.size())
         #print(sort_i)
         #input()
         z = self.classifier2(z)
-        sort_index_reverse= torch.cuda.LongTensor(sorted(range(len(sort_index)), key=lambda k: sort_index[k]))
-        z = torch.index_select(z , 0, sort_index_reverse)
         #print(torch.index_select(sort_i, 0, sort_index_reverse))
         #input()
         
@@ -275,5 +284,34 @@ class ImageDataset(Dataset):
             x = image[:self.max_len]
         y= torch.LongTensor([self.label[i]])
         return x, min(len(image), self.max_len), y
+    def __len__(self):
+        return len(self.image)
+class ImageDataLoader():
+    def __init__(self, image, label, batch_size, shuffle):
+        self.image = image
+        self.label = label
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+    def __iter__(self):
+        self.index = list(range(len(self.label)))
+        if self.shuffle: random.shuffle(self.index)
+        self.start_index=0
+        self.end_index=min(len(self.label),self.start_index+self.batch_size)
+        return self
+    def __next__(self):
+        if self.start_index >= len(self.label):
+            raise StopIteration
+        x,i,y=[], [], []
+        for j in range(self.start_index,self.end_index):
+            x.append(torch.FloatTensor(self.image[self.index[j]]).permute(0,3,1,2).float()/255)
+            i.append(len(self.image[self.index[j]]))
+            y.append(self.label[self.index[j]])
+        sort_index= torch.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
+        sort_x=nn.utils.rnn.pad_sequence( [x[i] for i in sort_index],batch_first=True)
+        sort_i= torch.index_select(torch.LongTensor(i), 0, sort_index)
+        sort_y= torch.index_select(torch.LongTensor(y), 0, sort_index)
+        self.start_index+=self.batch_size
+        self.end_index=min(len(self.label),self.start_index+self.batch_size)
+        return sort_x,sort_i,sort_y
     def __len__(self):
         return len(self.image)
