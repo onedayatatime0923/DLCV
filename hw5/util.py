@@ -223,12 +223,13 @@ class Vgg16_feature(nn.Module):
     def __init__(self, hidden_dim, label_dim, dropout=0.1):
         super(Vgg16_feature, self).__init__()
         original_model = models.vgg16(pretrained=True)
-        print(original_model)
-        input()
         self.dropout= nn.Dropout(dropout)
         self.features = original_model.features
-        self.classifier = nn.Sequential(
-                nn.Linear( 35840,hidden_dim),
+        self.classifier1 = nn.Sequential(
+                nn.Linear( 35840,25088),
+                original_model.classifier)
+        self.classifier2 = nn.Sequential(
+                nn.Linear( 1000,hidden_dim),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,hidden_dim),
@@ -249,7 +250,7 @@ class Vgg16_feature(nn.Module):
         #print(packed_data.data.size())
         z = self.features(packed_data.data)
         z = z.view(z.size(0), -1)
-        #print(z.size())
+        z = self.classifier1(z)
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
         #print(z[0].size())
@@ -257,7 +258,7 @@ class Vgg16_feature(nn.Module):
         #print(z.size())
         #print(sort_i)
         #input()
-        z = self.classifier(z)
+        z = self.classifier2(z)
         
         return z
 
