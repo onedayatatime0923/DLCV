@@ -37,7 +37,7 @@ class DataManager():
 
         od = collections.OrderedDict(sorted(result.items()))
         return od
-    def readShortVideo(self,video_path, video_category, video_name, downsample_factor=48, rescale_factor=1):
+    def readShortVideo(self,video_path, video_category, video_name, downsample_factor=12, rescale_factor=1):
         '''
         @param video_path: video directory
         @param video_category: video category (see csv files)
@@ -184,7 +184,7 @@ class ResNet50_feature(nn.Module):
         sort_x= torch.index_select(x, 0, sort_index)
         sort_i= torch.index_select(i, 0, sort_index)
         packed_data= nn.utils.rnn.pack_padded_sequence(sort_x, sort_i, batch_first=True)
-        #print(i)
+        print(i)
         #print(sort_i)
         #print(sort_x.size())
         #print(packed_data.data.size())
@@ -212,7 +212,7 @@ class ResNet50_feature(nn.Module):
         z = torch.sum(z[0],1)/ sort_i.unsqueeze(1).repeat(1,z[0].size(2)).float()
         z = self.classifier(z)
         #print(z.size())
-        #input()
+        input()
         #print(sort_i)
         #input()
         
@@ -230,6 +230,6 @@ class ImageDataset(Dataset):
         else:
             x = image[:self.max_len]
         y= torch.LongTensor([self.label[i]])
-        return x, x.size(0), y
+        return x, min(len(image), self.max_len), y
     def __len__(self):
         return len(self.image)
