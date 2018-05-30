@@ -7,10 +7,12 @@ EPOCH =200
 BATCH_SIZE = 2
 HIDDEN_SIZE = 4096
 LABEL_DIM = 11
+DROPOUT = 0.1
 TENSORBOARD_DIR= './runs/train'
 
+
 dm= DataManager(TENSORBOARD_DIR)
-model= Vgg16_feature(HIDDEN_SIZE, LABEL_DIM).cuda()
+model= Vgg16_feature(HIDDEN_SIZE, LABEL_DIM, DROPOUT).cuda()
 train_dataloader= dm.get_data('./data/TrimmedVideos/video/train', './data/TrimmedVideos/label/gt_train.csv', save_path=['./data/trainx.npy','./data/trainy.npy'], batch_size= BATCH_SIZE, shuffle= True)
 val_dataloader= dm.get_data('./data/TrimmedVideos/video/valid', './data/TrimmedVideos/label/gt_valid.csv', save_path=['./data/valx.npy','./data/valy.npy'], batch_size= BATCH_SIZE, shuffle= True)
 

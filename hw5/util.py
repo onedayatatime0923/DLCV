@@ -242,7 +242,6 @@ class Vgg16_feature(nn.Module):
         #print(sort_x.size())
         #print(packed_data.data.size())
         z = self.features(packed_data.data)
-        z = self.dropout(z)
         z = z.view(z.size(0), -1)
         #print(z.size())
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
