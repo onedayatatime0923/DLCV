@@ -223,6 +223,8 @@ class Vgg16_feature(nn.Module):
     def __init__(self, hidden_dim, label_dim, dropout=0.1):
         super(Vgg16_feature, self).__init__()
         original_model = models.vgg16(pretrained=True)
+        print(original_model)
+        input()
         self.dropout= nn.Dropout(dropout)
         self.features = original_model.features
         self.classifier = nn.Sequential(
