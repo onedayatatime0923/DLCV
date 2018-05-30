@@ -250,12 +250,13 @@ class Vgg16_feature(nn.Module):
     def forward(self, x, i):
         packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
         #print(i)
-        #print(sort_i)
-        #print(sort_x.size())
+        #print(x.size())
         #print(packed_data.data.size())
         z = self.features(packed_data.data)
         z = z.view(z.size(0), -1)
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
+        #print(packed_data.data.size())
+        #input()
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
         #print(z[0].size())
         z = torch.sum(z[0],1)/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
@@ -302,7 +303,7 @@ class ImageDataLoader():
         x,i,y=[], [], []
         for j in range(self.start_index,self.end_index):
             x.append(torch.FloatTensor(self.image[self.index[j]])[:self.max_len].permute(0,3,1,2).float()/255)
-            i.append(len(self.image[self.index[j]]))
+            i.append(min(len(self.image[self.index[j]]),self.max_len))
             y.append(self.label[self.index[j]])
         sort_index= torch.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
         sort_x=nn.utils.rnn.pad_sequence( [x[i] for i in sort_index],batch_first=True)
