@@ -86,7 +86,7 @@ class DataManager():
         start= time.time()
         model.train()
         
-        optimizer = torch.optim.Adam(model.parameters(),lr=1E-5)
+        optimizer = torch.optim.Adam(list(model.parameters())+[model.hidden],lr=1E-5)
         criterion= nn.CrossEntropyLoss()
         total_loss= 0
         batch_loss= 0
@@ -332,7 +332,9 @@ class Vgg16_feature_rnn(nn.Module):
     def hidden_layer(self,n):
         return  self.hidden.repeat(1,n,1)
     def initHidden(self, hidden_size):
-        return Variable(torch.zeros(self.layer_n,1, hidden_size),requires_grad=True).cuda()
+        return Variable(torch.zeros(self.layer_n,1, hidden_size).cuda(),requires_grad=True)
+    def save(self, path):
+        torch.save(self,path)
 
 class ImageDataset(Dataset):
     def __init__(self, image, label, max_len= 10):
