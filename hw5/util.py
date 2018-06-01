@@ -284,8 +284,6 @@ class Vgg16_feature_rnn(nn.Module):
     def __init__(self, hidden_dim, layer_n, label_dim, dropout=0):
         super(Vgg16_feature_rnn, self).__init__()
         original_model = models.vgg16(pretrained=True)
-        print(original_model)
-        input()
         self.hidden_dim = hidden_dim
         self.layer_n = layer_n
         self.hidden= self.initHidden(hidden_dim)
