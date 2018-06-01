@@ -82,7 +82,7 @@ class DataManager():
             np.save(save_path[0],x)
             np.save(save_path[1],y)
         return ImageDataLoader(x,y, batch_size=batch_size, shuffle=shuffle)
-    def train(self, model, dataloader, epoch, print_every= 10):
+    def train(self, model, dataloader, epoch, lr=1E-5, print_every= 10):
         start= time.time()
         model.train()
         
@@ -107,6 +107,8 @@ class DataManager():
             total_loss+= float(loss)* len(x)
             # accu
             pred = output.data.argmax(1) # get the index of the max log-probability
+            #print(y)
+            #print(pred)
             correct = pred.eq(y.data).long().cpu().sum()
             batch_correct += correct/ len(x)
             total_correct += correct
@@ -275,6 +277,62 @@ class Vgg16_feature(nn.Module):
         #input()
         
         return z
+class Vgg16_feature_rnn(nn.Module):
+    def __init__(self, hidden_dim, layer_n, label_dim, dropout=0):
+        super(Vgg16_feature_rnn, self).__init__()
+        original_model = models.vgg16(pretrained=True)
+        self.hidden_dim = hidden_dim
+        self.layer_n = layer_n
+        self.hidden= self.initHidden(hidden_dim)
+
+        self.dropout= nn.Dropout(dropout)
+        self.features = original_model.features
+        self.dimention_reduction= nn.Linear(35840,hidden_dim)
+        self.rnn= nn.GRU( hidden_dim, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
+        self.classifier = nn.Sequential(
+                nn.Linear( hidden_dim,hidden_dim),
+                nn.ReLU(inplace=True),
+                nn.Dropout(dropout),
+                nn.Linear( hidden_dim,hidden_dim),
+                nn.ReLU(inplace=True),
+                nn.Dropout(dropout),
+                nn.Linear( hidden_dim,hidden_dim),
+                nn.ReLU(inplace=True),
+                nn.Dropout(dropout),
+                nn.Linear( hidden_dim,label_dim))
+    def forward(self, x, i):
+        #print(x.size())
+        #print(i)
+        packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
+        #print(packed_data.data[0])
+        #print(i)
+        #print(x.size())
+        #print(packed_data.data.size())
+        z = self.features(packed_data.data)
+        z = z.view(z.size(0), -1)
+        z = self.dimention_reduction(z)
+        #print(packed_data.batch_sizes)
+        #print(z.data[0])
+        packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
+        packed_data, _=self.rnn(packed_data, self.hidden_layer(len(x)))
+        #print(packed_data.batch_sizes)
+        #print(packed_data.data[:3])
+        #input()
+        z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
+        #print(z[0].size())
+        z = torch.sum(z[0],1)/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
+        #print(z.size())
+        #print(sort_i)
+        #input()
+        z = self.classifier(z)
+        #print(torch.index_select(sort_i, 0, sort_index_reverse))
+        #input()
+        
+        return z
+    def hidden_layer(self,n):
+        return  self.hidden.repeat(1,n,1)
+    def initHidden(self, hidden_size):
+        return Variable(torch.zeros(self.layer_n,1, hidden_size),requires_grad=True).cuda()
 
 class ImageDataset(Dataset):
     def __init__(self, image, label, max_len= 10):
