@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 from torch.utils.data import Dataset,DataLoader
+import torchvision
 from torchvision import models
 from tensorboardX import SummaryWriter 
 import collections, os, skimage.transform, csv, time, math, random
@@ -85,7 +86,7 @@ class DataManager():
         start= time.time()
         model.train()
         
-        optimizer = torch.optim.Adam(model.parameters())
+        optimizer = torch.optim.Adam(model.parameters(),lr=1E-5)
         criterion= nn.CrossEntropyLoss()
         total_loss= 0
         batch_loss= 0
@@ -248,18 +249,24 @@ class Vgg16_feature(nn.Module):
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,label_dim))
     def forward(self, x, i):
+        #print(x.size())
+        #print(i)
         packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
+        #print(packed_data.data[0])
         #print(i)
         #print(x.size())
         #print(packed_data.data.size())
         z = self.features(packed_data.data)
         z = z.view(z.size(0), -1)
+        #print(packed_data.batch_sizes)
+        #print(z.data[0])
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
-        #print(packed_data.data.size())
+        #print(packed_data.batch_sizes)
+        #print(packed_data.data[:3])
         #input()
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
         #print(z[0].size())
-        z = torch.sum(z[0],1)#/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
+        z = torch.sum(z[0],1)/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
         #print(z.size())
         #print(sort_i)
         #input()
@@ -285,12 +292,13 @@ class ImageDataset(Dataset):
     def __len__(self):
         return len(self.image)
 class ImageDataLoader():
-    def __init__(self, image, label, batch_size, shuffle, max_len= 20):
+    def __init__(self, image, label, batch_size, shuffle, max_len= 80):
         self.image = image
         self.label = label
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.max_len = max_len
+        self.transform =  torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
     def __iter__(self):
         self.index = list(range(len(self.label)))
         if self.shuffle: random.shuffle(self.index)
@@ -302,7 +310,8 @@ class ImageDataLoader():
             raise StopIteration
         x,i,y=[], [], []
         for j in range(self.start_index,self.end_index):
-            x.append(torch.FloatTensor(self.image[self.index[j]])[:self.max_len].permute(0,3,1,2).float()/255)
+            image=[ self.transform(torch.FloatTensor(i).permute(2,0,1)/255).unsqueeze(0) for i in self.image[self.index[j]][:self.max_len]]
+            x.append(torch.cat(image,0))
             i.append(min(len(self.image[self.index[j]]),self.max_len))
             y.append(self.label[self.index[j]])
         sort_index= torch.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
@@ -311,6 +320,10 @@ class ImageDataLoader():
         sort_y= torch.index_select(torch.LongTensor(y), 0, sort_index)
         self.start_index+=self.batch_size
         self.end_index=min(len(self.label),self.start_index+self.batch_size)
+        #print(sort_x.size())
+        #print(sort_i.size())
+        #print(sort_y.size())
+        #input()
         return sort_x,sort_i,sort_y
     def __len__(self):
-        return len(self.image)
+        return len(self.label)
