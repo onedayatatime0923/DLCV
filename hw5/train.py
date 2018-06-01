@@ -24,4 +24,4 @@ for epoch in range(1,EPOCH+1):
     dm.train( model, train_dataloader, epoch, LEARNING_RATE)
     dm.val( model, val_dataloader, epoch)
     print('-'*80)
-    model.save(OUTPUT_PATH)
+model.save(OUTPUT_PATH)

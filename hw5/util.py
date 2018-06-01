@@ -289,8 +289,8 @@ class Vgg16_feature_rnn(nn.Module):
         self.hidden= self.initHidden(hidden_dim)
 
         self.dropout= nn.Dropout(dropout)
-        self.features = original_model.features
-        self.rnn= nn.GRU( hidden_dim, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
+        self.features = nn.Sequential(original_model.features, original_model.classifier)
+        self.rnn= nn.GRU( 1000, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
         self.classifier = nn.Sequential(
                 nn.Linear( hidden_dim,hidden_dim),
                 nn.ReLU(inplace=True),
