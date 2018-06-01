@@ -292,7 +292,7 @@ class ImageDataset(Dataset):
     def __len__(self):
         return len(self.image)
 class ImageDataLoader():
-    def __init__(self, image, label, batch_size, shuffle, max_len= 80):
+    def __init__(self, image, label, batch_size, shuffle, max_len= 20):
         self.image = image
         self.label = label
         self.batch_size = batch_size
