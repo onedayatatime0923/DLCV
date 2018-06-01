@@ -10,7 +10,9 @@ from torchvision import models
 from tensorboardX import SummaryWriter 
 import collections, os, skimage.transform, csv, time, math, random
 from skvideo import io
-assert torch and Dataset and DataLoader and F
+from skimage.transform import resize
+import matplotlib.pyplot as plt
+assert torch and Dataset and DataLoader and F and skimage and plt
 
 class DataManager():
     def __init__(self, path=None):
@@ -57,7 +59,8 @@ class DataManager():
         frames = []
         for frameIdx, frame in enumerate(videogen):
             if frameIdx % downsample_factor == 0:
-                frame = skimage.transform.rescale(frame, rescale_factor, mode='constant', preserve_range=True).astype(np.uint8)
+                frame= resize(frame,(224, 224, 3))
+                #frame = skimage.transform.rescale(frame, rescale_factor, mode='constant', preserve_range=True).astype(np.uint8)
                 frames.append(frame)
             else:
                 continue
@@ -86,7 +89,7 @@ class DataManager():
         start= time.time()
         model.train()
         
-        optimizer = torch.optim.Adam(model.parameters(),lr=1E-5)
+        optimizer = torch.optim.Adam(list(model.parameters())+[model.hidden],lr=1E-5)
         criterion= nn.CrossEntropyLoss()
         total_loss= 0
         batch_loss= 0
@@ -287,7 +290,6 @@ class Vgg16_feature_rnn(nn.Module):
 
         self.dropout= nn.Dropout(dropout)
         self.features = original_model.features
-        self.dimention_reduction= nn.Linear(35840,hidden_dim)
         self.rnn= nn.GRU( hidden_dim, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
         self.classifier = nn.Sequential(
                 nn.Linear( hidden_dim,hidden_dim),
@@ -310,7 +312,6 @@ class Vgg16_feature_rnn(nn.Module):
         #print(packed_data.data.size())
         z = self.features(packed_data.data)
         z = z.view(z.size(0), -1)
-        z = self.dimention_reduction(z)
         #print(packed_data.batch_sizes)
         #print(z.data[0])
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
@@ -332,23 +333,38 @@ class Vgg16_feature_rnn(nn.Module):
     def hidden_layer(self,n):
         return  self.hidden.repeat(1,n,1)
     def initHidden(self, hidden_size):
-        return Variable(torch.zeros(self.layer_n,1, hidden_size),requires_grad=True).cuda()
+        return Variable(torch.zeros(self.layer_n,1, hidden_size).cuda(),requires_grad=True)
+    def save(self, path):
+        torch.save(self,path)
+class Vgg16_feature_rnn_by_frame(nn.Module):
+    def __init__(self, hidden_dim, layer_n, label_dim, dropout, input_path):
+        super(Vgg16_feature_rnn, self).__init__()
+        original_model = torch.load(input_path)
+        self.hidden_dim = hidden_dim
+        self.layer_n = layer_n
+        self.hidden= self.initHidden(hidden_dim)
 
-class ImageDataset(Dataset):
-    def __init__(self, image, label, max_len= 10):
-        self.image = image
-        self.label = label
-        self.max_len = max_len #max([len(x) for x in image])
-    def __getitem__(self, i):
-        image= torch.from_numpy(self.image[i]).permute(0,3,1,2).float()/255
-        if len(image)< self.max_len:
-            x = torch.cat([image,torch.zeros(self.max_len- image.size(0), *image.size()[1:])],0)
-        else:
-            x = image[:self.max_len]
-        y= torch.LongTensor([self.label[i]])
-        return x, min(len(image), self.max_len), y
-    def __len__(self):
-        return len(self.image)
+        self.dropout= nn.Dropout(dropout)
+        self.features = original_model.features
+        self.dimention_reduction= original_model.dimention_reduction 
+        self.rnn= original_model.rnn
+        self.classifier = original_model.classifier
+    def forward(self, x, hidden):
+        x = self.features(x.unsqueeze(0))
+        x = x.view(x.size(0), -1)
+        x = self.dimention_reduction(x)
+        x, hidden=self.rnn(x.unsqueeze(0), hidden)
+
+        x = self.classifier(x.squeeze(0))
+        
+        return x, hidden
+    def hidden_layer(self,n):
+        return  self.hidden.repeat(1,n,1)
+    def initHidden(self, hidden_size):
+        return Variable(torch.zeros(self.layer_n,1, hidden_size).cuda(),requires_grad=True)
+    def save(self, path):
+        torch.save(self,path)
+
 class ImageDataLoader():
     def __init__(self, image, label, batch_size, shuffle, max_len= 16):
         self.image = image
