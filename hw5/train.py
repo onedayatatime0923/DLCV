@@ -10,13 +10,13 @@ LAYER_N = 3
 LABEL_DIM = 11
 DROPOUT = 0.2
 LEARNING_RATE = 1E-5
-OUTPUT_PATH = './vgg16_feature_rnn'
+OUTPUT_PATH = './model/vgg16_feature_rnn'
 TENSORBOARD_DIR= './runs/train'
 
 
 dm= DataManager(TENSORBOARD_DIR)
 model= Vgg16_feature_rnn(HIDDEN_SIZE, LAYER_N, LABEL_DIM, DROPOUT).cuda()
-model.save
+model.save(OUTPUT_PATH)
 train_dataloader= dm.get_data('./data/TrimmedVideos/video/train', './data/TrimmedVideos/label/gt_train.csv', save_path=['./data/trainx.npy','./data/trainy.npy'], batch_size= BATCH_SIZE, shuffle= True)
 val_dataloader= dm.get_data('./data/TrimmedVideos/video/valid', './data/TrimmedVideos/label/gt_valid.csv', save_path=['./data/valx.npy','./data/valy.npy'], batch_size= BATCH_SIZE, shuffle= True)
 
@@ -24,3 +24,4 @@ for epoch in range(1,EPOCH+1):
     dm.train( model, train_dataloader, epoch, LEARNING_RATE)
     dm.val( model, val_dataloader, epoch)
     print('-'*80)
+model.save(OUTPUT_PATH)
