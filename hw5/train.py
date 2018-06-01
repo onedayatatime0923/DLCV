@@ -10,7 +10,7 @@ LAYER_N = 3
 LABEL_DIM = 11
 DROPOUT = 0.2
 LEARNING_RATE = 1E-5
-OUTPUT_PATH = './model/vgg16_feature_rnn'
+OUTPUT_PATH = './model/vgg16_feature_rnn.pt'
 TENSORBOARD_DIR= './runs/train'
 
 
@@ -24,4 +24,4 @@ for epoch in range(1,EPOCH+1):
     dm.train( model, train_dataloader, epoch, LEARNING_RATE)
     dm.val( model, val_dataloader, epoch)
     print('-'*80)
-model.save(OUTPUT_PATH)
+    model.save(OUTPUT_PATH)
