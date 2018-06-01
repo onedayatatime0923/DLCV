@@ -284,14 +284,17 @@ class Vgg16_feature_rnn(nn.Module):
     def __init__(self, hidden_dim, layer_n, label_dim, dropout=0):
         super(Vgg16_feature_rnn, self).__init__()
         original_model = models.vgg16(pretrained=True)
+        print(original_model)
+        input()
         self.hidden_dim = hidden_dim
         self.layer_n = layer_n
         self.hidden= self.initHidden(hidden_dim)
 
         self.dropout= nn.Dropout(dropout)
-        self.features = nn.Sequential(original_model.features, original_model.classifier)
+        self.features = original_model.features
+        self.classifier1= original_model.classifier
         self.rnn= nn.GRU( 1000, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
-        self.classifier = nn.Sequential(
+        self.classifier2= nn.Sequential(
                 nn.Linear( hidden_dim,hidden_dim),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
@@ -312,6 +315,7 @@ class Vgg16_feature_rnn(nn.Module):
         #print(packed_data.data.size())
         z = self.features(packed_data.data)
         z = z.view(z.size(0), -1)
+        z = self.classifier1(z)
         #print(packed_data.batch_sizes)
         #print(z.data[0])
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
@@ -325,7 +329,7 @@ class Vgg16_feature_rnn(nn.Module):
         #print(z.size())
         #print(sort_i)
         #input()
-        z = self.classifier(z)
+        z = self.classifier2(z)
         #print(torch.index_select(sort_i, 0, sort_index_reverse))
         #input()
         
