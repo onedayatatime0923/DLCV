@@ -108,7 +108,7 @@ class DataManager():
         data_size= len(dataloader)
         for b, (x, y) in enumerate(dataloader):
             batch_index=b+1
-            x, y= Variable(x).cuda(), Variable(y).unsqueeze(1).cuda()
+            x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
             output= model(x)
             loss = criterion(output,y)
             optimizer.zero_grad()
@@ -152,7 +152,7 @@ class DataManager():
         data_size= len(dataloader)
         for b, (x, y) in enumerate(dataloader):
             batch_index=b+1
-            x, y= Variable(x).cuda(), Variable(y).unsqueeze(1).cuda()
+            x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
             output= model(x)
             loss = criterion(output,y)
             # loss
