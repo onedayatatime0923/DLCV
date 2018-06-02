@@ -313,7 +313,6 @@ class Vgg16_feature_rnn(nn.Module):
         #print(packed_data.data.size())
         z = self.features(packed_data.data)
         z = z.view(z.size(0), -1)
-        z = self.classifier1(z)
         #print(packed_data.batch_sizes)
         #print(z.data[0])
         packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
