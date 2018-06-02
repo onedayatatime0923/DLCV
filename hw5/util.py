@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
+from torch.utils.data import Dataset,DataLoader
 import torchvision
 from torchvision import models
 from tensorboardX import SummaryWriter 
@@ -12,10 +13,11 @@ from skvideo import io
 from skimage.transform import resize
 from PIL import Image
 import matplotlib.pyplot as plt
-assert torch and F and skimage and plt and resize
+assert torch and F and skimage and plt and resize and DataLoader
 
 class DataManager():
     def __init__(self, path=None):
+        self.feature_extractor = Vgg16_feature_extractor().cuda()
         if path== None: self.writer=None
         else: self.tb_setting(path)
     def tb_setting(self, directory):
@@ -59,37 +61,44 @@ class DataManager():
         frames = []
         for frameIdx, frame in enumerate(videogen):
             if frameIdx % downsample_factor == 0:
-                #frame= resize(frame,(224, 224, 3))
                 frame = skimage.transform.rescale(frame, rescale_factor, mode='constant', preserve_range=True).astype(np.uint8)
                 frames.append(frame)
             else:
                 continue
 
         return np.array(frames).astype(np.uint8)
-    def get_data(self, video_path, tag_path, save_path= None, batch_size=32, shuffle= True):
-        if save_path != None and os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
-                x= np.load(save_path[0])
-                y= np.load(save_path[1])
-                return ImageDataLoader(x,y, batch_size=batch_size, shuffle=shuffle)
+    def get_data(self, video_path, tag_path, save_path, batch_size=32, shuffle= True):
+        if os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
+            feature_size= np.load(save_path[0])[0].shape[1]
+            print('data has already been preprocessed!!!')
+            print('feature size: {}'.format(feature_size))
+            return feature_size
 
         file_dict=(self.getVideoList(tag_path))
         x, y=[], []
         for i in range(len(file_dict['Video_index'])):
-            x.append(self.readShortVideo(video_path, file_dict['Video_category'][i],file_dict['Video_name'][i]))
+            image=self.readShortVideo(video_path, file_dict['Video_category'][i],file_dict['Video_name'][i])
+            feature= []
+            for im in image:
+                variable_image= Variable(torch.FloatTensor(im).unsqueeze(0).permute(0,3,1,2).cuda())
+                feature.append(self.feature_extractor(variable_image).detach().squeeze(0).cpu().numpy())
+            x.append(np.array(feature))
             y.append(int(file_dict['Action_labels'][i]))
             print('\rreading image from {}...{}'.format(video_path,i),end='')
         x= np.array(x)
         y= np.array(y)
+        np.save(save_path[0],x)
+        np.save(save_path[1],y)
+        feature_size= x[0].shape[1]
         print('\rreading image from {}...finished'.format(video_path))
-        if save_path != None:
-            np.save(save_path[0],x)
-            np.save(save_path[1],y)
-        return ImageDataLoader(x,y, batch_size=batch_size, shuffle=shuffle)
-    def train(self, model, dataloader, epoch, lr=1E-5, print_every= 10):
+        print('data has been preprocessed!!!')
+        print('feature size: {}'.format(feature_size))
+        return feature_size
+    def train_classifier(self, model, dataloader, epoch, lr=1E-5, print_every= 10):
         start= time.time()
         model.train()
         
-        optimizer = torch.optim.Adam(list(model.parameters())+[model.hidden],lr=1E-5)
+        optimizer = torch.optim.Adam(model.parameters(),lr=lr)
         criterion= nn.CrossEntropyLoss()
         total_loss= 0
         batch_loss= 0
@@ -97,10 +106,10 @@ class DataManager():
         batch_correct= 0
         
         data_size= len(dataloader)
-        for b, (x, i, y) in enumerate(dataloader):
+        for b, (x, y) in enumerate(dataloader):
             batch_index=b+1
-            x, i, y= Variable(x).cuda(), Variable(i).cuda() , Variable(y).cuda()
-            output= model(x,i)
+            x, y= Variable(x).cuda(), Variable(y).cuda()
+            output= model(x)
             loss = criterion(output,y)
             optimizer.zero_grad()
             loss.backward()
@@ -117,9 +126,9 @@ class DataManager():
             total_correct += correct
             if batch_index% print_every== 0:
                 print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
-                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
                             batch_loss/ print_every, 100.* batch_correct/ print_every,
-                            self.timeSince(start, batch_index*len(i)/ data_size)),end='')
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
                 batch_loss= 0
                 batch_correct= 0
         print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
@@ -130,7 +139,7 @@ class DataManager():
             self.writer.add_scalar('Train Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Train Accu',  100.*total_correct/ data_size, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
-    def val(self,model,dataloader, epoch, print_every= 10):
+    def val_classifier(self,model,dataloader, epoch, print_every= 10):
         start= time.time()
         model.eval()
         
@@ -141,10 +150,10 @@ class DataManager():
         batch_correct= 0
         
         data_size= len(dataloader)
-        for b, (x, i, y) in enumerate(dataloader):
+        for b, (x, y) in enumerate(dataloader):
             batch_index=b+1
-            x, i, y= Variable(x).cuda(), Variable(i).cuda() , Variable(y).cuda()
-            output= model(x,i)
+            x, y= Variable(x).cuda(), Variable(y).cuda()
+            output= model(x)
             loss = criterion(output,y)
             # loss
             batch_loss+= float(loss)
@@ -156,9 +165,9 @@ class DataManager():
             total_correct += correct
             if batch_index% print_every== 0:
                 print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
-                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(i)/ data_size,
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
                             batch_loss/ print_every, 100.* batch_correct/ print_every,
-                            self.timeSince(start, batch_index*len(i)/ data_size)),end='')
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
                 batch_loss= 0
                 batch_correct= 0
         print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
@@ -180,11 +189,10 @@ class DataManager():
         s -= m * 60
         return '%dm %ds' % (m, s)
 
-class ResNet50_feature(nn.Module):
+class ResNet50_feature_extractor(nn.Module):
     def __init__(self, hidden_dim, label_dim, dropout=0.1):
-        super(ResNet50_feature, self).__init__()
+        super(ResNet50_feature_extractor, self).__init__()
         original_model = models.resnet50(pretrained=True)
-        self.dropout= nn.Dropout()
         self.conv1 = original_model.conv1
         self.bn1 = original_model.bn1
         self.relu = original_model.relu
@@ -194,56 +202,38 @@ class ResNet50_feature(nn.Module):
         self.layer3 = original_model.layer3
         self.layer4 = original_model.layer4
         self.avgpool = original_model.avgpool
-        self.classifier = nn.Sequential(
-                nn.Linear( 16384,hidden_dim),
-                nn.SELU(),
-                nn.Dropout(),
-                nn.Linear( hidden_dim,hidden_dim),
-                nn.SELU(),
-                nn.Dropout(),
-                nn.Linear( hidden_dim,label_dim))
     def forward(self, x, i):
-        packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
-        #print(i)
-        #print(sort_i)
-        #print(sort_x.size())
-        #print(packed_data.data.size())
-        z = self.conv1(packed_data.data)
-        z = self.bn1(z)
-        z = self.relu(z)
-        z = self.maxpool(z)
-        z = self.dropout(z)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        x = self.dropout(x)
 
-        z = self.layer1(z)
-        z = self.dropout(z)
-        z = self.layer2(z)
-        z = self.dropout(z)
-        z = self.layer3(z)
-        z = self.dropout(z)
-        z = self.layer4(z)
-        z = self.dropout(z)
+        x = self.layer1(x)
+        x = self.dropout(x)
+        x = self.layer2(x)
+        x = self.dropout(x)
+        x = self.layer3(x)
+        x = self.dropout(x)
+        x = self.layer4(x)
+        x = self.dropout(x)
 
-        z = self.avgpool(z)
-        z = z.view(z.size(0), -1)
-        #print(z.size())
-        packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
-        z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
-        #print(z[0].size())
-        z = torch.sum(z[0],1)/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
-        z = self.classifier(z)
-        #print(z.size())
-        #print(sort_i)
-        #input()
+        x = self.avgpool(x)
+        x = x.view(x.sixe(0), -1)
         
-        return z
-class Vgg16_feature(nn.Module):
-    def __init__(self, hidden_dim, label_dim, dropout=0):
-        super(Vgg16_feature, self).__init__()
-        original_model = models.vgg16(pretrained=True)
-        self.dropout= nn.Dropout(dropout)
-        self.features = original_model.features
+        return x
+class Vgg16_feature_extractor(nn.Module):
+    def __init__(self):
+        super(Vgg16_feature_extractor, self).__init__()
+        self.features = models.vgg16(pretrained=True).features
+    def forward(self, x):
+        x = self.features(x)
+        return x.view(x.size(0),-1)
+class Classifier(nn.Module):
+    def __init__(self, input_dim, hidden_dim, label_dim, dropout=0.5):
+        super(Classifier, self).__init__()
         self.classifier = nn.Sequential(
-                nn.Linear( 35840,hidden_dim),
+                nn.Linear( input_dim,hidden_dim),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,hidden_dim),
@@ -253,82 +243,29 @@ class Vgg16_feature(nn.Module):
                 nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,label_dim))
-    def forward(self, x, i):
-        #print(x.size())
-        #print(i)
-        packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
-        #print(packed_data.data[0])
-        #print(i)
-        #print(x.size())
-        #print(packed_data.data.size())
-        z = self.features(packed_data.data)
-        z = z.view(z.size(0), -1)
-        #print(packed_data.batch_sizes)
-        #print(z.data[0])
-        packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
-        #print(packed_data.batch_sizes)
-        #print(packed_data.data[:3])
-        #input()
-        z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
-        #print(z[0].size())
-        z = torch.sum(z[0],1)/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
-        #print(z.size())
-        #print(sort_i)
-        #input()
-        z = self.classifier(z)
-        #print(torch.index_select(sort_i, 0, sort_index_reverse))
-        #input()
-        
-        return z
-class Vgg16_feature_rnn(nn.Module):
-    def __init__(self, hidden_dim, layer_n, label_dim, dropout=0):
-        super(Vgg16_feature_rnn, self).__init__()
-        original_model = models.vgg16(pretrained=True)
-        self.hidden_dim = hidden_dim
+    def forward(self, x):
+        x = self.classifier(x)
+        return x
+    def save(self, path):
+        torch.save(self,path)
+
+class Rnn_Classifier(nn.Module):
+    def __init__(self, feature_dim, layer_n, dropout, classifier_path):
+        super(Rnn_Classifier, self).__init__()
         self.layer_n = layer_n
-        self.hidden= self.initHidden(hidden_dim)
+        self.hidden= self.initHidden(feature_dim)
 
-        self.dropout= nn.Dropout(dropout)
-        self.features = original_model.features
-        self.classifier1= original_model.classifier
-        self.rnn= nn.GRU(35840, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
-        self.classifier2= nn.Sequential(
-                nn.Linear( hidden_dim,hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Dropout(dropout),
-                nn.Linear( hidden_dim,hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Dropout(dropout),
-                nn.Linear( hidden_dim,hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Dropout(dropout),
-                nn.Linear( hidden_dim,label_dim))
+        self.rnn= nn.GRU(feature_dim, feature_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
+        self.classifier = torch.load(classifier_path)
     def forward(self, x, i):
-        #print(x.size())
-        #print(i)
         packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
-        #print(packed_data.data[0])
-        #print(i)
-        #print(x.size())
-        #print(packed_data.data.size())
-        z = self.features(packed_data.data)
-        z = z.view(z.size(0), -1)
-        #print(packed_data.batch_sizes)
-        #print(z.data[0])
-        packed_data=nn.utils.rnn.PackedSequence(z, packed_data.batch_sizes)
+
         packed_data, _=self.rnn(packed_data, self.hidden_layer(len(x)))
-        #print(packed_data.batch_sizes)
-        #print(packed_data.data[:3])
-        #input()
+
+        # todo: get the last step data of packed_data
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
-        #print(z[0].size())
-        z = torch.sum(z[0],1)/ i.unsqueeze(1).repeat(1,z[0].size(2)).float()
-        #print(z.size())
-        #print(sort_i)
-        #input()
-        z = self.classifier2(z)
-        #print(torch.index_select(sort_i, 0, sort_index_reverse))
-        #input()
+
+        z = self.classifier(z)
         
         return z
     def hidden_layer(self,n):
@@ -339,7 +276,7 @@ class Vgg16_feature_rnn(nn.Module):
         torch.save(self,path)
 class Vgg16_feature_rnn_by_frame(nn.Module):
     def __init__(self, hidden_dim, layer_n, label_dim, dropout, input_path):
-        super(Vgg16_feature_rnn, self).__init__()
+        super(Vgg16_feature_rnn_by_frame, self).__init__()
         original_model = torch.load(input_path)
         self.hidden_dim = hidden_dim
         self.layer_n = layer_n
@@ -365,6 +302,17 @@ class Vgg16_feature_rnn_by_frame(nn.Module):
         return Variable(torch.zeros(self.layer_n,1, hidden_size).cuda(),requires_grad=True)
     def save(self, path):
         torch.save(self,path)
+
+class ImageDataset(Dataset):
+    def __init__(self, image_path, label_path):
+        self.image = np.load(image_path)
+        self.label = np.load(label_path)
+    def __getitem__(self, i):
+        x=torch.mean(torch.FloatTensor(self.image[i]).cuda(),0)
+        y=torch.LongTensor([self.label[i]])
+        return x,y
+    def __len__(self):
+        return len(self.image)
 
 class ImageDataLoader():
     def __init__(self, image, label, batch_size, shuffle, max_len= 16):
