@@ -178,6 +178,90 @@ class DataManager():
             self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
+    def train_rnn(self, model, dataloader, epoch, lr=1E-5, print_every= 10):
+        start= time.time()
+        model.train()
+        
+        optimizer = torch.optim.Adam(model.parameters(),lr=lr)
+        criterion= nn.CrossEntropyLoss()
+        total_loss= 0
+        batch_loss= 0
+        total_correct= 0
+        batch_correct= 0
+        
+        data_size= len(dataloader.dataset)
+        for b, (x, y) in enumerate(dataloader):
+            batch_index=b+1
+            x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
+            output= model(x)
+            loss = criterion(output,y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            # loss
+            batch_loss+= float(loss)
+            total_loss+= float(loss)* len(x)
+            # accu
+            pred = output.data.argmax(1) # get the index of the max log-probability
+            #print(y)
+            #print(pred)
+            correct = pred.eq(y.data).long().cpu().sum()
+            batch_correct += correct/ len(x)
+            total_correct += correct
+            if batch_index% print_every== 0:
+                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
+                            batch_loss/ print_every, 100.* batch_correct/ print_every,
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
+                batch_loss= 0
+                batch_correct= 0
+        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                    epoch , batch_index*len(x), data_size, 100.,
+                    float(total_loss)/ data_size, 100.*total_correct/ data_size,
+                    self.timeSince(start, 1)))
+        if self.writer != None:
+            self.writer.add_scalar('Train Loss', float(total_loss)/ data_size, epoch)
+            self.writer.add_scalar('Train Accu',  100.*total_correct/ data_size, epoch)
+        return float(total_loss)/ data_size, 100. * total_correct/ data_size
+    def val_rnn(self,model,dataloader, epoch, print_every= 10):
+        start= time.time()
+        model.eval()
+        
+        criterion= nn.CrossEntropyLoss()
+        total_loss= 0
+        batch_loss= 0
+        total_correct= 0
+        batch_correct= 0
+        
+        data_size= len(dataloader.dataset)
+        for b, (x, y) in enumerate(dataloader):
+            batch_index=b+1
+            x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
+            output= model(x)
+            loss = criterion(output,y)
+            # loss
+            batch_loss+= float(loss)
+            total_loss+= float(loss)* len(x)
+            # accu
+            pred = output.data.argmax(1) # get the index of the max log-probability
+            correct = pred.eq(y.data).long().cpu().sum()
+            batch_correct += correct/ len(x)
+            total_correct += correct
+            if batch_index% print_every== 0:
+                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
+                            batch_loss/ print_every, 100.* batch_correct/ print_every,
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
+                batch_loss= 0
+                batch_correct= 0
+        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                    epoch , batch_index*len(x), data_size, 100.,
+                    float(total_loss)/ data_size, 100.*total_correct/ data_size,
+                    self.timeSince(start, 1)))
+        if self.writer != None:
+            self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
+            self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
+        return float(total_loss)/ data_size, 100. * total_correct/ data_size
     def timeSince(self,since, percent):
         now = time.time()
         s = now - since
@@ -315,13 +399,12 @@ class ImageDataset(Dataset):
         return len(self.image)
 
 class ImageDataLoader():
-    def __init__(self, image, label, batch_size, shuffle, max_len= 16):
-        self.image = image
-        self.label = label
+    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 16):
+        self.image = np.load(image_path)
+        self.label = np.load(label_path)
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.max_len = max_len
-        self.transform =  torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
     def __iter__(self):
         self.index = list(range(len(self.label)))
         if self.shuffle: random.shuffle(self.index)
@@ -333,8 +416,7 @@ class ImageDataLoader():
             raise StopIteration
         x,i,y=[], [], []
         for j in range(self.start_index,self.end_index):
-            image=[ self.transform(torch.FloatTensor(i).permute(2,0,1)/255).unsqueeze(0) for i in self.image[self.index[j]][:self.max_len]]
-            x.append(torch.cat(image,0))
+            x.append(torch.FloatTensor(self.image[self.index[j]][:self.max_len]))
             i.append(min(len(self.image[self.index[j]]),self.max_len))
             y.append(self.label[self.index[j]])
         sort_index= torch.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
