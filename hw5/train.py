@@ -13,6 +13,9 @@ LEARNING_RATE = 1E-5
 OUTPUT_PATH = './model/vgg16_feature_rnn.pt'
 TENSORBOARD_DIR= './runs/train'
 
+################################################################
+#                      problem 2                               #
+################################################################
 
 dm= DataManager(TENSORBOARD_DIR)
 model= Vgg16_feature_rnn(HIDDEN_SIZE, LAYER_N, LABEL_DIM, DROPOUT).cuda()
@@ -25,3 +28,6 @@ for epoch in range(1,EPOCH+1):
     dm.val( model, val_dataloader, epoch)
     print('-'*80)
 model.save(OUTPUT_PATH)
+################################################################
+#                      problem 3                               #
+################################################################
