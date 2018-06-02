@@ -4,15 +4,15 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
-from torch.utils.data import Dataset,DataLoader
 import torchvision
 from torchvision import models
 from tensorboardX import SummaryWriter 
 import collections, os, skimage.transform, csv, time, math, random
 from skvideo import io
 from skimage.transform import resize
+from PIL import Image
 import matplotlib.pyplot as plt
-assert torch and Dataset and DataLoader and F and skimage and plt
+assert torch and F and skimage and plt and resize
 
 class DataManager():
     def __init__(self, path=None):
@@ -59,8 +59,8 @@ class DataManager():
         frames = []
         for frameIdx, frame in enumerate(videogen):
             if frameIdx % downsample_factor == 0:
-                frame= resize(frame,(224, 224, 3))
-                #frame = skimage.transform.rescale(frame, rescale_factor, mode='constant', preserve_range=True).astype(np.uint8)
+                #frame= resize(frame,(224, 224, 3))
+                frame = skimage.transform.rescale(frame, rescale_factor, mode='constant', preserve_range=True).astype(np.uint8)
                 frames.append(frame)
             else:
                 continue
@@ -400,5 +400,51 @@ class ImageDataLoader():
         #print(sort_y.size())
         #input()
         return sort_x,sort_i,sort_y
+    def __len__(self):
+        return len(self.label)
+class MovieDataLoader():
+    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 16):
+        self.image = None
+        self.image_path = image_path
+        self.label = None
+        self.label_path = label_path
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.max_len = max_len
+        self.transform =  torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
+    def __iter__(self):
+        x=[]
+        file_list = [file for file in os.listdir(self.image_path) if file.endswith('.jpg')]
+        file_list.sort()
+        for i in file_list:
+            x.append(np.array(Image.open('{}/{}'.format(self.image_path,i)),dtype=np.uint8).resize((224, 224)))
+            print('\rreading image form {}...{}'.format(self.image_path,len(x)),end='')
+        self.image=np.array(x)
+        with open(self.label_path, 'r') as f:
+            self.label= np.array(list(f)).astype(np.uint8)
+
+        self.index = list(range(len(self.label)))
+        if self.shuffle: random.shuffle(self.index)
+        self.start_index=0
+        self.end_index=min(len(self.label),self.start_index+self.batch_size)
+        return self
+    def __next__(self):
+        if self.start_index >= len(self.label):
+            del self.image, self.label
+            self.image, self.label= None, None
+            raise StopIteration
+        x,y=[], []
+        for j in range(self.start_index,self.end_index):
+            x.append( self.transform(torch.FloatTensor(self.image[self.index[j]]).permute(2,0,1)/255).unsqueeze(0))
+            y.append( self.label[self.index[j]])
+        x= torch.cat(x,0)
+        y= torch.cat(y,0)
+        self.start_index+=self.batch_size
+        self.end_index=min(len(self.label),self.start_index+self.batch_size)
+        #print(sort_x.size())
+        #print(sort_i.size())
+        #print(sort_y.size())
+        #input()
+        return x,y
     def __len__(self):
         return len(self.label)
