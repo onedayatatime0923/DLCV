@@ -105,7 +105,7 @@ class DataManager():
         total_correct= 0
         batch_correct= 0
         
-        data_size= len(dataloader)
+        data_size= len(dataloader.dataset)
         for b, (x, y) in enumerate(dataloader):
             batch_index=b+1
             x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
@@ -149,7 +149,7 @@ class DataManager():
         total_correct= 0
         batch_correct= 0
         
-        data_size= len(dataloader)
+        data_size= len(dataloader.dataset)
         for b, (x, y) in enumerate(dataloader):
             batch_index=b+1
             x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
