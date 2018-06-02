@@ -31,7 +31,7 @@ if args.problem==1:
     model.save(OUTPUT_PATH)
 
     train_dataloader= DataLoader(ImageDataset(*train_path),batch_size= BATCH_SIZE, shuffle= True)
-    val_dataloader= DataLoader(ImageDataset(*train_path),batch_size= BATCH_SIZE, shuffle= True)
+    val_dataloader= DataLoader(ImageDataset(*val_path),batch_size= BATCH_SIZE, shuffle= True)
 
     for epoch in range(1,EPOCH+1):
         dm.train_classifier( model, train_dataloader, epoch, LEARNING_RATE)
