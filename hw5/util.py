@@ -290,9 +290,8 @@ class Vgg16_feature_rnn(nn.Module):
 
         self.dropout= nn.Dropout(dropout)
         self.features = original_model.features
-        self.classifier1= original_model.classifier
         self.rnn= nn.GRU(35840, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
-        self.classifier2= nn.Sequential(
+        self.classifier = nn.Sequential(
                 nn.Linear( hidden_dim,hidden_dim),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
@@ -326,7 +325,7 @@ class Vgg16_feature_rnn(nn.Module):
         #print(z.size())
         #print(sort_i)
         #input()
-        z = self.classifier2(z)
+        z = self.classifier(z)
         #print(torch.index_select(sort_i, 0, sort_index_reverse))
         #input()
         
