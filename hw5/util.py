@@ -185,7 +185,7 @@ class DataManager():
         start= time.time()
         model.train()
         
-        optimizer = torch.optim.Adam(model.parameters(),lr=lr)
+        optimizer = torch.optim.Adam(list(model.parameters())+[model.hidden],lr=lr)
         criterion= nn.CrossEntropyLoss()
         total_loss= 0
         batch_loss= 0
@@ -196,9 +196,6 @@ class DataManager():
         for b, (x, i, y) in enumerate(dataloader):
             batch_index=b+1
             x, i, y= Variable(x).cuda(), Variable(i).cuda(), Variable(y).cuda()
-            #print(x.size())
-            #print(i)
-            #print(y)
             output= model(x,i)
             loss = criterion(output,y)
             optimizer.zero_grad()
@@ -210,9 +207,6 @@ class DataManager():
             # accu
             pred = output.data.argmax(1) # get the index of the max log-probability
             correct = int(pred.eq(y.data).long().cpu().sum())
-            print(float(loss))
-            print(correct)
-            input()
 
             batch_correct += correct/ len(x)
             total_correct += correct
@@ -364,7 +358,7 @@ class Rnn_Classifier(nn.Module):
         packed_data, _=self.rnn(packed_data, self.hidden_layer(len(x)))
 
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
-        index= z[1].cuda().unsqueeze(1).unsqueeze(2).repeat(1,1,z[0].size(2))
+        index= i.unsqueeze(1).unsqueeze(2).repeat(1,1,z[0].size(2))
 
         z= torch.gather(z[0],1,index-1).squeeze(1)
 
@@ -374,7 +368,7 @@ class Rnn_Classifier(nn.Module):
     def hidden_layer(self,n):
         return  self.hidden.repeat(1,n,1)
     def initHidden(self, hidden_size):
-        return Variable(torch.zeros(self.layer_n,1, hidden_size,requires_grad=True).cuda())
+        return Variable(torch.zeros(self.layer_n,1, hidden_size).cuda(),requires_grad=True)
     def save(self, path):
         torch.save(self,path)
 class Vgg16_feature_rnn_by_frame(nn.Module):
