@@ -135,7 +135,7 @@ class DataManager():
                 batch_loss= 0
                 batch_correct= 0
         print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
-                    epoch , batch_index*len(x), data_size, 100.,
+                    epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
         if self.writer != None:
@@ -174,7 +174,7 @@ class DataManager():
                 batch_loss= 0
                 batch_correct= 0
         print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
-                    epoch , batch_index*len(x), data_size, 100.,
+                    epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
         if self.writer != None:
@@ -218,7 +218,7 @@ class DataManager():
                 batch_loss= 0
                 batch_correct= 0
         print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
-                    epoch , batch_index*len(x), data_size, 100.,
+                    epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
         if self.writer != None:
@@ -257,7 +257,7 @@ class DataManager():
                 batch_loss= 0
                 batch_correct= 0
         print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
-                    epoch , batch_index*len(x), data_size, 100.,
+                    epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
         if self.writer != None:

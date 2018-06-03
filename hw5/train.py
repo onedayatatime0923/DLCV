@@ -71,7 +71,7 @@ elif args.problem==2:
     accu_record=0
     for epoch in range(1,EPOCH+1):
         dm.train_rnn( model, train_dataloader, epoch, LEARNING_RATE)
-        dm.val_rnn( model, val_dataloader, epoch)
+        record=dm.val_rnn( model, val_dataloader, epoch)
         if record[1]> accu_record:
             model.save(OUTPUT_PATH)
             accu_record= record[1]
