@@ -238,7 +238,7 @@ class DataManager():
         data_size= len(dataloader)
         for b, (x, i, y) in enumerate(dataloader):
             batch_index=b+1
-            x, i, y= Variable(x, volatile=True).cuda(), Variable(i, volatile=True).cuda(), Variable(y, volatile=True).cuda()
+            x, i, y= Variable(x).cuda(), Variable(i).cuda(), Variable(y).cuda()
             output= model(x,i)
             loss = criterion(output,y)
             # loss
