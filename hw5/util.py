@@ -322,19 +322,19 @@ class Classifier(nn.Module):
         self.dimention_reduction = nn.Sequential(
                 nn.Linear( input_dim,hidden_dim),
                 nn.BatchNorm1d(hidden_dim),
-                #nn.LeakyReLU(0.02,inplace=True),
-                nn.SELU(),
+                nn.LeakyReLU(0.02,inplace=True),
+                #nn.SELU(),
                 nn.Dropout(dropout))
         self.classifier = nn.Sequential(
                 nn.Linear( hidden_dim,hidden_dim),
                 nn.BatchNorm1d(hidden_dim),
-                #nn.LeakyReLU(0.02,inplace=True),
-                nn.SELU(),
+                nn.LeakyReLU(0.02,inplace=True),
+                #nn.SELU(),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,hidden_dim),
                 nn.BatchNorm1d(hidden_dim),
-                #nn.LeakyReLU(0.02,inplace=True),
-                nn.SELU(),
+                nn.LeakyReLU(0.02,inplace=True),
+                #nn.SELU(),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,label_dim))
     def forward(self, x):
