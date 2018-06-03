@@ -321,12 +321,14 @@ class Classifier(nn.Module):
         super(Classifier, self).__init__()
         self.dimention_reduction = nn.Sequential(
                 nn.Linear( input_dim,hidden_dim),
-                nn.SELU())
-                #nn.ReLU(inplace=True))
+                nn.LeakyReLU(0.02,inplace=True),
+                nn.Dropout(dropout))
         self.classifier = nn.Sequential(
                 nn.Linear( hidden_dim,hidden_dim),
-                nn.SELU(),
-                #nn.ReLU(inplace=True),
+                nn.LeakyReLU(0.02,inplace=True),
+                nn.Dropout(dropout),
+                nn.Linear( hidden_dim,hidden_dim),
+                nn.LeakyReLU(0.02,inplace=True),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,label_dim))
     def forward(self, x):
