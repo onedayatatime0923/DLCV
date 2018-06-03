@@ -24,9 +24,9 @@ if args.problem==1:
 
     train_path=['./dataset/trainx.npy','./dataset/trainy.npy']
     val_path=['./dataset/valx.npy','./dataset/valy.npy']
-    #train_feature_dim= dm.get_data('./data/TrimmedVideos/video/train', './data/TrimmedVideos/label/gt_train.csv', save_path=train_path, batch_size= BATCH_SIZE, shuffle= True)
-    #val_feature_dim= dm.get_data('./data/TrimmedVideos/video/valid', './data/TrimmedVideos/label/gt_valid.csv', save_path=val_path, batch_size= BATCH_SIZE, shuffle= True)
-    #assert train_feature_dim == val_feature_dim
+    train_feature_dim= dm.get_data('./data/TrimmedVideos/video/train', './data/TrimmedVideos/label/gt_train.csv', save_path=train_path, batch_size= BATCH_SIZE, shuffle= True)
+    val_feature_dim= dm.get_data('./data/TrimmedVideos/video/valid', './data/TrimmedVideos/label/gt_valid.csv', save_path=val_path, batch_size= BATCH_SIZE, shuffle= True)
+    assert train_feature_dim == val_feature_dim
     model= Classifier(TRAIN_FEATURE, HIDDEN_DIM, LABEL_DIM, DROPOUT).cuda()
     model.save(OUTPUT_PATH)
 
