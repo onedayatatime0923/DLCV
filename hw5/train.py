@@ -14,7 +14,7 @@ dm= DataManager(TENSORBOARD_DIR)
 ################################################################
 if args.problem==1:
     EPOCH = 50
-    BATCH_SIZE = 512
+    BATCH_SIZE = 128
     TRAIN_FEATURE = 35840
     HIDDEN_DIM = 2048
     LABEL_DIM = 11
