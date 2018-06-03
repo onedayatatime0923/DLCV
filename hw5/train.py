@@ -47,7 +47,7 @@ if args.problem==1:
 ################################################################
 elif args.problem==2:
     EPOCH =200
-    BATCH_SIZE = 128
+    BATCH_SIZE = 32
     TRAIN_FEATURE = 35840
     HIDDEN_DIM = 2048
     LAYER_N = 3
