@@ -321,14 +321,20 @@ class Classifier(nn.Module):
         super(Classifier, self).__init__()
         self.dimention_reduction = nn.Sequential(
                 nn.Linear( input_dim,hidden_dim),
-                nn.LeakyReLU(0.02,inplace=True),
+                nn.BatchNorm1d(hidden_dim),
+                #nn.LeakyReLU(0.02,inplace=True),
+                nn.SELU(),
                 nn.Dropout(dropout))
         self.classifier = nn.Sequential(
                 nn.Linear( hidden_dim,hidden_dim),
-                nn.LeakyReLU(0.02,inplace=True),
+                nn.BatchNorm1d(hidden_dim),
+                #nn.LeakyReLU(0.02,inplace=True),
+                nn.SELU(),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,hidden_dim),
-                nn.LeakyReLU(0.02,inplace=True),
+                nn.BatchNorm1d(hidden_dim),
+                #nn.LeakyReLU(0.02,inplace=True),
+                nn.SELU(),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,label_dim))
     def forward(self, x):
@@ -344,14 +350,15 @@ class Rnn_Classifier(nn.Module):
         self.hidden= self.initHidden(hidden_dim)
 
         self.dimention_reduction = torch.load(classifier_path).dimention_reduction
-        self.rnn= nn.GRU( hidden_dim, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
+        self.rnn= nn.GRU( input_dim, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
+        self.bn= nn.BatchNorm1d(hidden_dim)
         self.classifier = torch.load(classifier_path).classifier
     def forward(self, x, i):
         packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
 
-        z = self.dimention_reduction(packed_data.data)
+        #z = self.dimention_reduction(packed_data.data)
 
-        packed_data = nn.utils.rnn.PackedSequence(z,packed_data.batch_sizes)
+        #packed_data = nn.utils.rnn.PackedSequence(z,packed_data.batch_sizes)
 
         packed_data, hidden=self.rnn(packed_data, self.hidden_layer(len(x)))
 
@@ -365,6 +372,7 @@ class Rnn_Classifier(nn.Module):
 
         #z=torch.sum(z[0],1)/ i.float().unsqueeze(1).repeat(1,z[0].size(2))
 
+        z = self.bn(z)
         z = self.classifier(z)
         
         return z
