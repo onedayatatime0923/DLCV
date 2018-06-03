@@ -17,7 +17,7 @@ assert torch and F and skimage and plt and resize and DataLoader
 
 class DataManager():
     def __init__(self, path=None):
-        self.feature_extractor = Vgg16_feature_extractor().cuda()
+        self.feature_extractor = None
         if path== None: self.writer=None
         else: self.tb_setting(path)
     def tb_setting(self, directory):
@@ -67,6 +67,8 @@ class DataManager():
                 continue
 
         return np.array(frames).astype(np.uint8)
+    def set_feature_extractor(self):
+        self.feature_extractor = Vgg16_feature_extractor().cuda()
     def get_data(self, video_path, tag_path, save_path, batch_size=32, shuffle= True):
         if os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
             feature_size= np.load(save_path[0])[0].shape[1]
@@ -76,6 +78,7 @@ class DataManager():
 
         file_dict=(self.getVideoList(tag_path))
         x, y=[], []
+        self.set_feature_extractor()
         for i in range(len(file_dict['Video_index'])):
             image=self.readShortVideo(video_path, file_dict['Video_category'][i],file_dict['Video_name'][i])
             feature= []
@@ -105,10 +108,10 @@ class DataManager():
         total_correct= 0
         batch_correct= 0
         
-        data_size= len(dataloader)
+        data_size= len(dataloader.dataset)
         for b, (x, y) in enumerate(dataloader):
             batch_index=b+1
-            x, y= Variable(x).cuda(), Variable(y).cuda()
+            x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
             output= model(x)
             loss = criterion(output,y)
             optimizer.zero_grad()
@@ -149,10 +152,99 @@ class DataManager():
         total_correct= 0
         batch_correct= 0
         
-        data_size= len(dataloader)
+        data_size= len(dataloader.dataset)
         for b, (x, y) in enumerate(dataloader):
             batch_index=b+1
-            x, y= Variable(x).cuda(), Variable(y).cuda()
+            x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
+            output= model(x)
+            loss = criterion(output,y)
+            # loss
+            batch_loss+= float(loss)
+            total_loss+= float(loss)* len(x)
+            # accu
+            pred = output.data.argmax(1) # get the index of the max log-probability
+            correct = pred.eq(y.data).long().cpu().sum()
+            batch_correct += correct/ len(x)
+            total_correct += correct
+            if batch_index% print_every== 0:
+                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
+                            batch_loss/ print_every, 100.* batch_correct/ print_every,
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
+                batch_loss= 0
+                batch_correct= 0
+        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                    epoch , batch_index*len(x), data_size, 100.,
+                    float(total_loss)/ data_size, 100.*total_correct/ data_size,
+                    self.timeSince(start, 1)))
+        if self.writer != None:
+            self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
+            self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
+        return float(total_loss)/ data_size, 100. * total_correct/ data_size
+    def train_rnn(self, model, dataloader, epoch, lr=1E-5, print_every= 10):
+        start= time.time()
+        model.train()
+        
+        optimizer = torch.optim.Adam(model.parameters(),lr=lr)
+        criterion= nn.CrossEntropyLoss()
+        total_loss= 0
+        batch_loss= 0
+        total_correct= 0
+        batch_correct= 0
+        
+        data_size= len(dataloader)
+        for b, (x, i, y) in enumerate(dataloader):
+            batch_index=b+1
+            x, i, y= Variable(x).cuda(), Variable(i).cuda(), Variable(y).cuda()
+            #print(x.size())
+            #print(i)
+            #print(y)
+            output= model(x,i)
+            loss = criterion(output,y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            # loss
+            batch_loss+= float(loss)
+            total_loss+= float(loss)* len(x)
+            # accu
+            pred = output.data.argmax(1) # get the index of the max log-probability
+            correct = int(pred.eq(y.data).long().cpu().sum())
+            print(float(loss))
+            print(correct)
+            input()
+
+            batch_correct += correct/ len(x)
+            total_correct += correct
+            if batch_index% print_every== 0:
+                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
+                            batch_loss/ print_every, 100.* batch_correct/ print_every,
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
+                batch_loss= 0
+                batch_correct= 0
+        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                    epoch , batch_index*len(x), data_size, 100.,
+                    float(total_loss)/ data_size, 100.*total_correct/ data_size,
+                    self.timeSince(start, 1)))
+        if self.writer != None:
+            self.writer.add_scalar('Train Loss', float(total_loss)/ data_size, epoch)
+            self.writer.add_scalar('Train Accu',  100.*total_correct/ data_size, epoch)
+        return float(total_loss)/ data_size, 100. * total_correct/ data_size
+    def val_rnn(self,model,dataloader, epoch, print_every= 10):
+        start= time.time()
+        model.eval()
+        
+        criterion= nn.CrossEntropyLoss()
+        total_loss= 0
+        batch_loss= 0
+        total_correct= 0
+        batch_correct= 0
+        
+        data_size= len(dataloader)
+        for b, (x, i, y) in enumerate(dataloader):
+            batch_index=b+1
+            x, i, y= Variable(x, volatile=True).cuda(), Variable(i, volatile=True).cuda(), Variable(y, volatile=True).cuda()
             output= model(x)
             loss = criterion(output,y)
             # loss
@@ -229,41 +321,52 @@ class Vgg16_feature_extractor(nn.Module):
     def forward(self, x):
         x = self.features(x)
         return x.view(x.size(0),-1)
+
 class Classifier(nn.Module):
     def __init__(self, input_dim, hidden_dim, label_dim, dropout=0.5):
         super(Classifier, self).__init__()
-        self.classifier = nn.Sequential(
+        self.dimention_reduction = nn.Sequential(
                 nn.Linear( input_dim,hidden_dim),
-                nn.ReLU(inplace=True),
+                nn.SELU())
+                #nn.ReLU(inplace=True))
+        self.classifier = nn.Sequential(
+                nn.Linear( hidden_dim,hidden_dim),
+                nn.SELU(),
+                #nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Dropout(dropout),
-                nn.Linear( hidden_dim,hidden_dim),
-                nn.ReLU(inplace=True),
+                nn.SELU(),
+                #nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
                 nn.Linear( hidden_dim,label_dim))
     def forward(self, x):
+        x = self.dimention_reduction(x)
         x = self.classifier(x)
         return x
     def save(self, path):
         torch.save(self,path)
-
 class Rnn_Classifier(nn.Module):
-    def __init__(self, feature_dim, layer_n, dropout, classifier_path):
+    def __init__(self, hidden_dim, layer_n, dropout, classifier_path):
         super(Rnn_Classifier, self).__init__()
         self.layer_n = layer_n
-        self.hidden= self.initHidden(feature_dim)
+        self.hidden= self.initHidden(hidden_dim)
 
-        self.rnn= nn.GRU(feature_dim, feature_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
-        self.classifier = torch.load(classifier_path)
+        self.dimention_reduction = torch.load(classifier_path).dimention_reduction
+        self.rnn= nn.GRU( hidden_dim, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
+        self.classifier = torch.load(classifier_path).classifier
     def forward(self, x, i):
         packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
 
+        z = self.dimention_reduction(packed_data.data)
+
+        packed_data = nn.utils.rnn.PackedSequence(z,packed_data.batch_sizes)
+
         packed_data, _=self.rnn(packed_data, self.hidden_layer(len(x)))
 
-        # todo: get the last step data of packed_data
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
+        index= z[1].cuda().unsqueeze(1).unsqueeze(2).repeat(1,1,z[0].size(2))
+
+        z= torch.gather(z[0],1,index-1).squeeze(1)
 
         z = self.classifier(z)
         
@@ -271,7 +374,7 @@ class Rnn_Classifier(nn.Module):
     def hidden_layer(self,n):
         return  self.hidden.repeat(1,n,1)
     def initHidden(self, hidden_size):
-        return Variable(torch.zeros(self.layer_n,1, hidden_size).cuda(),requires_grad=True)
+        return Variable(torch.zeros(self.layer_n,1, hidden_size,requires_grad=True).cuda())
     def save(self, path):
         torch.save(self,path)
 class Vgg16_feature_rnn_by_frame(nn.Module):
@@ -313,15 +416,13 @@ class ImageDataset(Dataset):
         return x,y
     def __len__(self):
         return len(self.image)
-
 class ImageDataLoader():
-    def __init__(self, image, label, batch_size, shuffle, max_len= 16):
-        self.image = image
-        self.label = label
+    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 16):
+        self.image = np.load(image_path)
+        self.label = np.load(label_path)
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.max_len = max_len
-        self.transform =  torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
     def __iter__(self):
         self.index = list(range(len(self.label)))
         if self.shuffle: random.shuffle(self.index)
@@ -333,8 +434,7 @@ class ImageDataLoader():
             raise StopIteration
         x,i,y=[], [], []
         for j in range(self.start_index,self.end_index):
-            image=[ self.transform(torch.FloatTensor(i).permute(2,0,1)/255).unsqueeze(0) for i in self.image[self.index[j]][:self.max_len]]
-            x.append(torch.cat(image,0))
+            x.append(torch.FloatTensor(self.image[self.index[j]][:self.max_len]))
             i.append(min(len(self.image[self.index[j]]),self.max_len))
             y.append(self.label[self.index[j]])
         sort_index= torch.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
@@ -350,6 +450,7 @@ class ImageDataLoader():
         return sort_x,sort_i,sort_y
     def __len__(self):
         return len(self.label)
+
 class MovieDataLoader():
     def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 16):
         self.image = None
