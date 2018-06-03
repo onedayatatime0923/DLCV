@@ -328,10 +328,6 @@ class Classifier(nn.Module):
                 nn.SELU(),
                 #nn.ReLU(inplace=True),
                 nn.Dropout(dropout),
-                nn.Linear( hidden_dim,hidden_dim),
-                nn.SELU(),
-                #nn.ReLU(inplace=True),
-                nn.Dropout(dropout),
                 nn.Linear( hidden_dim,label_dim))
     def forward(self, x):
         x = self.dimention_reduction(x)
