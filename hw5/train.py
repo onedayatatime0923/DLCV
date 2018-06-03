@@ -51,8 +51,7 @@ elif args.problem==2:
     TRAIN_FEATURE = 35840
     HIDDEN_DIM = 2048
     LAYER_N = 3
-    LABEL_DIM = 11
-    DROPOUT = 0.3
+    DROPOUT = 0.5
     LEARNING_RATE = 1E-5
     INPUT_PATH = './model/classifier.pt'
     OUTPUT_PATH = './model/rnn_classifier.pt'
