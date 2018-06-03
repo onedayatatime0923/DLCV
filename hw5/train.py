@@ -50,7 +50,7 @@ elif args.problem==2:
     BATCH_SIZE = 32
     TRAIN_FEATURE = 35840
     HIDDEN_DIM = 1024
-    LAYER_N = 3
+    LAYER_N = 2
     LABEL_DIM = 11
     DROPOUT = 0.3
     LEARNING_RATE = 1E-6
