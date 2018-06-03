@@ -53,7 +53,7 @@ elif args.problem==2:
     LAYER_N = 2
     LABEL_DIM = 11
     DROPOUT = 0.3
-    LEARNING_RATE = 1E-6
+    LEARNING_RATE = 1E-5
     INPUT_PATH = './model/classifier.pt'
     OUTPUT_PATH = './model/rnn_classifier.pt'
 
