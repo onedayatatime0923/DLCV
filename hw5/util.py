@@ -355,9 +355,11 @@ class Rnn_Classifier(nn.Module):
 
         #packed_data = nn.utils.rnn.PackedSequence(z,packed_data.batch_sizes)
 
-        packed_data, _=self.rnn(packed_data, self.hidden_layer(len(x)))
+        packed_data, hidden=self.rnn(packed_data, self.hidden_layer(len(x)))
 
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
+        #print(hidden)
+        #input()
 
         #index= i.unsqueeze(1).unsqueeze(2).repeat(1,1,z[0].size(2))
 
