@@ -211,13 +211,13 @@ class DataManager():
             batch_correct += correct/ len(x)
             total_correct += correct
             if batch_index% print_every== 0:
-                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                             epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
                             batch_loss/ print_every, 100.* batch_correct/ print_every,
                             self.timeSince(start, batch_index*len(x)/ data_size)),end='')
                 batch_loss= 0
                 batch_correct= 0
-        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+        print('\rTrain Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                     epoch , batch_index*len(x), data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
@@ -246,17 +246,17 @@ class DataManager():
             total_loss+= float(loss)* len(x)
             # accu
             pred = output.data.argmax(1) # get the index of the max log-probability
-            correct = pred.eq(y.data).long().cpu().sum()
+            correct = int(pred.eq(y.data).long().cpu().sum())
             batch_correct += correct/ len(x)
             total_correct += correct
             if batch_index% print_every== 0:
-                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                             epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
                             batch_loss/ print_every, 100.* batch_correct/ print_every,
                             self.timeSince(start, batch_index*len(x)/ data_size)),end='')
                 batch_loss= 0
                 batch_correct= 0
-        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                     epoch , batch_index*len(x), data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
