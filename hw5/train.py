@@ -16,7 +16,7 @@ if args.problem==1:
     EPOCH = 50
     BATCH_SIZE = 512
     TRAIN_FEATURE = 35840
-    HIDDEN_DIM = 1024
+    HIDDEN_DIM = 2048
     LABEL_DIM = 11
     DROPOUT = 0.3
     LEARNING_RATE = 1E-5
@@ -49,8 +49,8 @@ elif args.problem==2:
     EPOCH =200
     BATCH_SIZE = 32
     TRAIN_FEATURE = 35840
-    HIDDEN_DIM = 1024
-    LAYER_N = 2
+    HIDDEN_DIM = 2048
+    LAYER_N = 3
     LABEL_DIM = 11
     DROPOUT = 0.3
     LEARNING_RATE = 1E-5
@@ -62,7 +62,7 @@ elif args.problem==2:
     #train_feature_dim= dm.get_data('./data/TrimmedVideos/video/train', './data/TrimmedVideos/label/gt_train.csv', save_path=train_path, batch_size= BATCH_SIZE, shuffle= True)
     #val_feature_dim= dm.get_data('./data/TrimmedVideos/video/valid', './data/TrimmedVideos/label/gt_valid.csv', save_path=val_path, batch_size= BATCH_SIZE, shuffle= True)
     #assert train_feature_dim == val_feature_dim
-    model= Rnn_Classifier(TRAIN_FEATURE, HIDDEN_DIM, LABEL_DIM, DROPOUT, INPUT_PATH).cuda()
+    model= Rnn_Classifier(TRAIN_FEATURE, HIDDEN_DIM, LAYER_N, DROPOUT, INPUT_PATH).cuda()
     model.save(OUTPUT_PATH)
 
     train_dataloader= ImageDataLoader(train_path[0], train_path[1],batch_size= BATCH_SIZE, shuffle= True)

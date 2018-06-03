@@ -345,26 +345,27 @@ class Rnn_Classifier(nn.Module):
         self.layer_n = layer_n
         self.hidden= self.initHidden(hidden_dim)
 
-        #self.dimention_reduction = torch.load(classifier_path).dimention_reduction
-        self.rnn= nn.GRU( input_dim, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
+        self.dimention_reduction = torch.load(classifier_path).dimention_reduction
+        self.rnn= nn.GRU( hidden_dim, hidden_dim,num_layers= layer_n,batch_first=True, dropout=dropout)
         self.classifier = torch.load(classifier_path).classifier
     def forward(self, x, i):
         packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
 
-        #z = self.dimention_reduction(packed_data.data)
+        z = self.dimention_reduction(packed_data.data)
 
-        #packed_data = nn.utils.rnn.PackedSequence(z,packed_data.batch_sizes)
+        packed_data = nn.utils.rnn.PackedSequence(z,packed_data.batch_sizes)
 
         packed_data, hidden=self.rnn(packed_data, self.hidden_layer(len(x)))
 
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
-        #print(hidden)
-        #input()
+
+        z=torch.mean(torch.transpose(hidden,0,1).contiguous(),1)
+
 
         #index= i.unsqueeze(1).unsqueeze(2).repeat(1,1,z[0].size(2))
-
         #z= torch.gather(z[0],1,index-1).squeeze(1)
-        z=torch.sum(z[0],1)/ i.float().unsqueeze(1).repeat(1,z[0].size(2))
+
+        #z=torch.sum(z[0],1)/ i.float().unsqueeze(1).repeat(1,z[0].size(2))
 
         z = self.classifier(z)
         
@@ -415,7 +416,7 @@ class ImageDataset(Dataset):
     def __len__(self):
         return len(self.image)
 class ImageDataLoader():
-    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 128):
+    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 256):
         self.image = np.load(image_path)
         self.label = np.load(label_path)
         self.batch_size = batch_size
