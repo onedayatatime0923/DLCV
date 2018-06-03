@@ -16,7 +16,7 @@ if args.problem==1:
     EPOCH = 50
     BATCH_SIZE = 512
     TRAIN_FEATURE = 35840
-    HIDDEN_DIM = 1024
+    HIDDEN_DIM = 2048
     LABEL_DIM = 11
     DROPOUT = 0.2
     LEARNING_RATE = 1E-5
@@ -45,7 +45,7 @@ elif args.problem==2:
     EPOCH =200
     BATCH_SIZE = 128
     TRAIN_FEATURE = 35840
-    HIDDEN_DIM = 1024
+    HIDDEN_DIM = 2048
     LAYER_N = 3
     LABEL_DIM = 11
     DROPOUT = 0.2
