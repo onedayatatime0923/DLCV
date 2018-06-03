@@ -446,7 +446,7 @@ class ImageDataLoader():
         return len(self.label)
 
 class MovieDataLoader():
-    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 16):
+    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 40):
         self.image = None
         self.image_path = image_path
         self.label = None
