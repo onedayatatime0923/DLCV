@@ -360,10 +360,10 @@ class Rnn_Classifier(nn.Module):
         #z=torch.mean(torch.transpose(hidden,0,1).contiguous(),1)
 
 
-        #index= i.unsqueeze(1).unsqueeze(2).repeat(1,1,z[0].size(2))
-        #z= torch.gather(z[0],1,index-1).squeeze(1)
+        index= i.unsqueeze(1).unsqueeze(2).repeat(1,1,z[0].size(2))
+        z= torch.gather(z[0],1,index-1).squeeze(1)
 
-        z=torch.sum(z[0],1)/ i.float().unsqueeze(1).repeat(1,z[0].size(2))
+        #z=torch.sum(z[0],1)/ i.float().unsqueeze(1).repeat(1,z[0].size(2))
 
         z = self.classifier(z)
         
@@ -414,7 +414,7 @@ class ImageDataset(Dataset):
     def __len__(self):
         return len(self.image)
 class ImageDataLoader():
-    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 256):
+    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 512):
         self.image = np.load(image_path)
         self.label = np.load(label_path)
         self.batch_size = batch_size
@@ -441,8 +441,8 @@ class ImageDataLoader():
         self.start_index+=self.batch_size
         self.end_index=min(len(self.label),self.start_index+self.batch_size)
         #print(sort_x.size())
-        #print(sort_i.size())
-        #print(sort_y.size())
+        #print(sort_i)
+        #print(sort_y)
         #input()
         return sort_x,sort_i,sort_y
     def __len__(self):

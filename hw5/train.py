@@ -14,7 +14,7 @@ dm= DataManager(TENSORBOARD_DIR)
 ################################################################
 if args.problem==1:
     EPOCH = 50
-    BATCH_SIZE = 512
+    BATCH_SIZE = 128
     TRAIN_FEATURE = 35840
     HIDDEN_DIM = 2048
     LABEL_DIM = 11
@@ -47,11 +47,11 @@ if args.problem==1:
 ################################################################
 elif args.problem==2:
     EPOCH =200
-    BATCH_SIZE = 32
+    BATCH_SIZE = 4
     TRAIN_FEATURE = 35840
     HIDDEN_DIM = 2048
     LAYER_N = 3
-    DROPOUT = 0.5
+    DROPOUT = 0.8
     LEARNING_RATE = 1E-5
     INPUT_PATH = './model/classifier.pt'
     OUTPUT_PATH = './model/rnn_classifier.pt'
