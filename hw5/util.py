@@ -411,7 +411,7 @@ class ImageDataset(Dataset):
     def __len__(self):
         return len(self.image)
 class ImageDataLoader():
-    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 16):
+    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 128):
         self.image = np.load(image_path)
         self.label = np.load(label_path)
         self.batch_size = batch_size
