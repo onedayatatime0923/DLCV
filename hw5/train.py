@@ -16,9 +16,9 @@ if args.problem==1:
     EPOCH = 50
     BATCH_SIZE = 128
     TRAIN_FEATURE = 35840
-    HIDDEN_DIM = 2048
+    HIDDEN_DIM = 1024
     LABEL_DIM = 11
-    DROPOUT = 0.3
+    DROPOUT = 0.5
     LEARNING_RATE = 1E-5
     OUTPUT_PATH = './model/classifier.pt'
 
@@ -47,9 +47,9 @@ if args.problem==1:
 ################################################################
 elif args.problem==2:
     EPOCH =200
-    BATCH_SIZE = 4
+    BATCH_SIZE = 32
     TRAIN_FEATURE = 35840
-    HIDDEN_DIM = 2048
+    HIDDEN_DIM = 1024
     LAYER_N = 3
     DROPOUT = 0.8
     LEARNING_RATE = 1E-5
