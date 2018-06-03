@@ -358,13 +358,14 @@ class Rnn_Classifier(nn.Module):
         packed_data, hidden=self.rnn(packed_data, self.hidden_layer(len(x)))
 
         z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
-        #print(hidden)
-        #input()
+
+        z=torch.mean(torch.transpose(hidden,0,1).contiguous(),1)
+
 
         #index= i.unsqueeze(1).unsqueeze(2).repeat(1,1,z[0].size(2))
-
         #z= torch.gather(z[0],1,index-1).squeeze(1)
-        z=torch.sum(z[0],1)/ i.float().unsqueeze(1).repeat(1,z[0].size(2))
+
+        #z=torch.sum(z[0],1)/ i.float().unsqueeze(1).repeat(1,z[0].size(2))
 
         z = self.classifier(z)
         
