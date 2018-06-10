@@ -71,12 +71,13 @@ class DataManager():
         return np.array(frames).astype(np.uint8)
     def set_feature_extractor(self):
         self.feature_extractor = Vgg16_feature_extractor().cuda()
-    def get_data(self, video_path, tag_path, save_path, batch_size=32, shuffle= True):
-        if os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
-            feature_size= np.load(save_path[0])[0].shape[1]
-            print('data has already been preprocessed!!!')
-            print('feature size: {}'.format(feature_size))
-            return feature_size
+    def get_data(self, video_path, tag_path, save_path= None):
+        if save_path!= None:
+            if os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
+                feature_size= np.load(save_path[0])[0].shape[1]
+                print('data has already been preprocessed!!!')
+                print('feature size: {}'.format(feature_size))
+                return [np.load(save_path[0]),np.load(save_path[1])]
 
         file_dict=(self.getVideoList(tag_path))
         x, y=[], []
@@ -92,17 +93,19 @@ class DataManager():
             print('\rreading image from {}...{}'.format(video_path,i),end='')
         x= np.array(x)
         y= np.array(y)
-        np.save(save_path[0],x)
-        np.save(save_path[1],y)
+        if save_path!= None:
+            np.save(save_path[0],x)
+            np.save(save_path[1],y)
         feature_size= x[0].shape[1]
         print('\rreading image from {}...finished'.format(video_path))
         print('data has been preprocessed!!!')
         print('feature size: {}'.format(feature_size))
-        return feature_size
-    def get_movie(self, video_path, tag_path, save_path, cut=sys.maxsize, batch_size=32, shuffle= True):
-        if os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
-            print('data has already been preprocessed!!!')
-            return  None
+        return [x,y]
+    def get_movie(self, video_path, tag_path=None, save_path= None, cut=sys.maxsize):
+        if save_path!= None:
+            if os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
+                print('data has already been preprocessed!!!')
+                return [np.load(save_path[0]),np.load(save_path[1])]
 
         self.set_feature_extractor()
         moviedir= os.listdir(video_path)
@@ -121,26 +124,29 @@ class DataManager():
                 print('\rreading image from {}/{}...{}'.format(video_path,m,len(x)),end='')
             x.append(np.array(images))
         print('\rreading image from {}...finished'.format(video_path))
-
-        y=[]
-        for m in moviedir:
-            print('\rreading tag from {}/{}.txt...'.format(tag_path,m),end='')
-            with open('{}/{}.txt'.format(tag_path,m)) as f:
-                data= [ i.strip() for i in f.readlines()]
-                data= [np.array(data[i:i + cut]).astype(np.uint8) for i in range(0, len(data), cut)]
-                y.extend(data)
-        for i in y:
-            print(i.shape)
-
-
         x= np.array(x)
-        y= np.array(y)
-        np.save(save_path[0],x)
-        np.save(save_path[1],y)
+
+        if tag_path is not None:
+            y=[]
+            for m in moviedir:
+                print('\rreading tag from {}/{}.txt...'.format(tag_path,m),end='')
+                with open('{}/{}.txt'.format(tag_path,m)) as f:
+                    data= [ i.strip() for i in f.readlines()]
+                    data= [np.array(data[i:i + cut]).astype(np.uint8) for i in range(0, len(data), cut)]
+                    y.extend(data)
+            y= np.array(y)
+
+        if save_path!= None:
+            np.save(save_path[0],x)
+            if tag_path is not None:
+                np.save(save_path[1],y)
         feature_size= x[0].shape[1]
         print('data has been preprocessed!!!')
         print('feature size: {}'.format(feature_size))
-        return feature_size
+        if tag_path is not None:
+            return [x, y]
+        else:
+            return x, moviedir
     def train_classifier(self, model, dataloader, epoch, lr=1E-5, print_every= 10):
         start= time.time()
         model.train()
@@ -225,6 +231,46 @@ class DataManager():
             self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
+    def test_classifier(self,model,dataloader, epoch, print_every= 10):
+        start= time.time()
+        model.eval()
+        
+        criterion= nn.CrossEntropyLoss()
+        total_loss= 0
+        batch_loss= 0
+        total_correct= 0
+        batch_correct= 0
+        
+        data_size= len(dataloader.dataset)
+        result=[]
+        for b, (x, y) in enumerate(dataloader):
+            batch_index=b+1
+            x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
+            output= model(x)
+            loss = criterion(output,y)
+            # loss
+            batch_loss+= float(loss)
+            total_loss+= float(loss)* len(x)
+            # accu
+            pred = output.data.argmax(1) # get the index of the max log-probability
+            correct = pred.eq(y.data).long().cpu().sum()
+            batch_correct += correct/ len(x)
+            total_correct += correct
+            # result
+            result.extend(output.data.argmax(1).unsqueeze(0))
+            if batch_index% print_every== 0:
+                print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:2f}% | Time: {}  '.format(
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
+                            batch_loss/ print_every, 100.* batch_correct/ print_every,
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
+                batch_loss= 0
+                batch_correct= 0
+        print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:2f}% | Time: {}  '.format(
+                    epoch , data_size, data_size, 100.,
+                    float(total_loss)/ data_size, 100.*total_correct/ data_size,
+                    self.timeSince(start, 1)))
+        result= torch.cat( result, 0).cpu()
+        return  result
     def train_rnn(self, model, dataloader, epoch, lr, print_every= 10):
         start= time.time()
         model.train()
@@ -238,7 +284,7 @@ class DataManager():
         batch_correct= 0
         
         data_size= len(dataloader)
-        for b, (x, i, y) in enumerate(dataloader):
+        for b, (x, i, y, _) in enumerate(dataloader):
             batch_index=b+1
             x, i, y= Variable(x).cuda(), Variable(i).cuda(), Variable(y).cuda()
             output= model(x,i)
@@ -281,7 +327,7 @@ class DataManager():
         batch_correct= 0
         
         data_size= len(dataloader)
-        for b, (x, i, y) in enumerate(dataloader):
+        for b, (x, i, y, _) in enumerate(dataloader):
             batch_index=b+1
             x, i, y= Variable(x).cuda(), Variable(i).cuda(), Variable(y).cuda()
             output= model(x,i)
@@ -309,6 +355,47 @@ class DataManager():
             self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
+    def test_rnn(self,model,dataloader, epoch, print_every= 10):
+        start= time.time()
+        model.eval()
+        
+        criterion= nn.CrossEntropyLoss()
+        total_loss= 0
+        batch_loss= 0
+        total_correct= 0
+        batch_correct= 0
+        
+        data_size= len(dataloader)
+        result= []
+        for b, (x, i, y, sort_index) in enumerate(dataloader):
+            batch_index=b+1
+            x, i, y= Variable(x).cuda(), Variable(i).cuda(), Variable(y).cuda()
+            output= model(x,i)
+            loss = criterion(output,y)
+            # loss
+            batch_loss+= float(loss)
+            total_loss+= float(loss)* len(x)
+            # accu
+            pred = output.data.argmax(1) # get the index of the max log-probability
+            correct = int(pred.eq(y.data).long().cpu().sum())
+            batch_correct += correct/ len(x)
+            total_correct += correct
+            # result
+            result.extend(dataloader.reverse(output.data.argmax(1),sort_index).unsqueeze(0))
+            if batch_index% print_every== 0:
+                print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
+                            batch_loss/ print_every, 100.* batch_correct/ print_every,
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
+                batch_loss= 0
+                batch_correct= 0
+        print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
+                    epoch , data_size, data_size, 100.,
+                    float(total_loss)/ data_size, 100.*total_correct/ data_size,
+                    self.timeSince(start, 1)))
+            
+        result= torch.cat( result, 0).cpu()
+        return  result
     def train_movie(self, model, dataloader, epoch, lr, print_every= 10):
         start= time.time()
         model.train()
@@ -323,7 +410,7 @@ class DataManager():
         batch_count= 0
         
         data_size= len(dataloader)
-        for b, (x, i, y) in enumerate(dataloader):
+        for b, (x, i, y, _) in enumerate(dataloader):
             batch_index=b+1
             x, i, y= Variable(x).cuda(), Variable(i).cuda(), Variable(y).cuda()
             output= model(x,i)
@@ -369,7 +456,7 @@ class DataManager():
         batch_count= 0
         
         data_size= len(dataloader)
-        for b, (x, i, y) in enumerate(dataloader):
+        for b, (x, i, y, _) in enumerate(dataloader):
             batch_index=b+1
             x, i, y= Variable(x).cuda(), Variable(i).cuda(), Variable(y).cuda()
             output= model(x,i)
@@ -400,6 +487,53 @@ class DataManager():
             self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
+    def test_movie(self,model,dataloader, epoch, print_every= 10):
+        start= time.time()
+        model.eval()
+        
+        total_loss= 0
+        batch_loss= 0
+        total_correct= 0
+        batch_correct= 0
+        total_count= 0
+        batch_count= 0
+        
+        data_size= len(dataloader)
+        result= []
+        index= []
+        for b, (x, i, y, sort_index) in enumerate(dataloader):
+            batch_index=b+1
+            x, i, y= Variable(x).cuda(), Variable(i).cuda(), Variable(y).cuda()
+            output= model(x,i)
+            loss = self.pack_CCE(output,y,i)
+            # loss
+            batch_loss+= float(loss)
+            total_loss+= float(loss)* len(x)
+            # accu
+            correct, count = self.pack_accu(output, y, i)
+
+            batch_correct += correct
+            total_correct += correct
+            batch_count += count
+            total_count += count
+            if batch_index% print_every== 0:
+                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
+                            epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
+                            batch_loss/ print_every, 100.* batch_correct/ batch_count,
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
+                batch_loss= 0
+                batch_correct= 0
+                batch_count = 0
+
+            result.extend(dataloader.reverse(output.data.argmax(2),sort_index).unsqueeze(0))
+            index.extend(dataloader.reverse(i,sort_index).unsqueeze(0))
+        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
+                    epoch , data_size, data_size, 100.,
+                    float(total_loss)/ data_size, 100.*total_correct/ batch_count,
+                    self.timeSince(start, 1)))
+        result= torch.cat( result, 0).cpu()
+        index= torch.cat( index, 0).cpu()
+        return  result, index
     def timeSince(self,since, percent):
         now = time.time()
         s = now - since
@@ -415,15 +549,25 @@ class DataManager():
         plt.imshow(data)
         plt.show()
     def pack_CCE(self, x, y, i):
+        packed_x= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
         packed_y= nn.utils.rnn.pack_padded_sequence(y, i, batch_first=True)
-        result = F.cross_entropy(x,packed_y.data)
+        result = F.cross_entropy(packed_x.data,packed_y.data)
         return result
     def pack_accu(self, x, y, i):
-        pred = x.data.argmax(1)
+        packed_x= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
         packed_y= nn.utils.rnn.pack_padded_sequence(y, i, batch_first=True)
-        correct = int(pred.eq(packed_y.data.data).long().cpu().sum())
-        count = len(x)
+        pred = packed_x.data.argmax(1)
+        correct = int(pred.eq(packed_y.data).long().cpu().sum())
+        count = len(pred)
         return correct, count
+    def write(self, data, path):
+        output= '\n'.join(list(data.numpy().astype(str)))
+        with open(path, 'w') as f:
+            f.write(output)
+    def write_movie(self, data, index, path_dir, path_list):
+        for i in range(len(data)):
+            self.write(data[i][:int(index[i])],'{}/{}.txt'.format(path_dir,path_list[i]))
+        
 
 class Vgg16_feature_extractor(nn.Module):
     def __init__(self):
@@ -537,7 +681,13 @@ class Rnn_Classifier_Movie(nn.Module):
         packed_data= nn.utils.rnn.pack_padded_sequence(x, i, batch_first=True)
 
         packed_data, hidden=self.rnn(packed_data, self.hidden_layer(len(x)))
-        #z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
+
+        z = self.bn(packed_data.data)
+        z = self.classifier(z)
+
+        packed_data= nn.utils.rnn.PackedSequence( z, packed_data.batch_sizes)
+
+        z = nn.utils.rnn.pad_packed_sequence(packed_data,batch_first=True)
 
         #z = hidden.permute(1,0,2).contiguous().view(hidden.size(1),-1)
         #z=torch.mean(torch.transpose(hidden,0,1).contiguous(),1)
@@ -549,10 +699,7 @@ class Rnn_Classifier_Movie(nn.Module):
         #z=torch.sum(z[0],1)/ i.float().unsqueeze(1).repeat(1,z[0].size(2))
 
 
-        z = self.bn(packed_data.data)
-        z = self.classifier(z)
-        
-        return z
+        return z[0]
     def hidden_layer(self,n):
         return  self.hidden.repeat(1,n,1)
     def initHidden(self, hidden_size):
@@ -561,9 +708,9 @@ class Rnn_Classifier_Movie(nn.Module):
         torch.save(self,path)
 
 class ImageDataset(Dataset):
-    def __init__(self, image_path, label_path):
-        self.image = np.load(image_path)
-        self.label = np.load(label_path)
+    def __init__(self, image=None, label=None):
+        self.image = image
+        self.label = label
     def __getitem__(self, i):
         x=torch.mean(torch.FloatTensor(self.image[i]).cuda(),0)
         y=torch.LongTensor([self.label[i]])
@@ -571,9 +718,9 @@ class ImageDataset(Dataset):
     def __len__(self):
         return len(self.image)
 class ImageDataLoader():
-    def __init__(self, image_path, label_path, batch_size, shuffle, max_len= 512):
-        self.image = np.load(image_path)
-        self.label = np.load(label_path)
+    def __init__(self, image, label, batch_size, shuffle, max_len= 512):
+        self.image = image
+        self.label = label
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.max_len = max_len
@@ -601,13 +748,17 @@ class ImageDataLoader():
         #print(sort_i)
         #print(sort_y)
         #input()
-        return sort_x,sort_i,sort_y
+        return sort_x,sort_i,sort_y, sort_index
     def __len__(self):
         return len(self.label)
+    def reverse(self, x, i):
+        sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k]))
+        sort_x= torch.index_select(x, 0, sort_index)
+        return sort_x
 class MovieDataLoader():
-    def __init__(self, image_path, label_path, batch_size, shuffle, max_len=10000 ):
-        self.image = np.load(image_path)
-        self.label = np.load(label_path)
+    def __init__(self, image, label, batch_size, shuffle, max_len=10000 ):
+        self.image = image
+        self.label = label
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.max_len = max_len
@@ -624,7 +775,10 @@ class MovieDataLoader():
         for j in range(self.start_index,self.end_index):
             x.append(torch.FloatTensor(self.image[self.index[j]][:self.max_len]))
             i.append(min(len(self.image[self.index[j]]),self.max_len))
-            y.append(torch.LongTensor(self.label[self.index[j]][:self.max_len]))
+            if self.label is None:
+                y.append(torch.LongTensor([0 for i in range(min(len(self.image[self.index[j]]),self.max_len))]))
+            else:
+                y.append(torch.LongTensor(self.label[self.index[j]][:self.max_len]))
         sort_index= torch.LongTensor(sorted(range(len(i)), key=lambda k: i[k], reverse=True))
         sort_x=nn.utils.rnn.pad_sequence( [x[i] for i in sort_index],batch_first=True)
         sort_i= torch.index_select(torch.LongTensor(i), 0, sort_index)
@@ -635,6 +789,10 @@ class MovieDataLoader():
         #print(sort_i)
         #print(sort_y.size())
         #input()
-        return sort_x,sort_i,sort_y
+        return sort_x,sort_i,sort_y, sort_index
     def __len__(self):
         return len(self.label)
+    def reverse(self, x, i):
+        sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k]))
+        sort_x= torch.index_select(x, 0, sort_index)
+        return sort_x
