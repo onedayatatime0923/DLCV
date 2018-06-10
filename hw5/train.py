@@ -1,7 +1,7 @@
 
 from torch.utils.data import DataLoader
 import argparse
-from util import DataManager, ImageDataset, ImageDataLoader, Classifier, Rnn_Classifier
+from util import DataManager, ImageDataset, ImageDataLoader, MovieDataLoader,  Classifier, Rnn_Classifier, Rnn_Classifier_Movie
 
 parser = argparse.ArgumentParser(description='DLCV HW5')
 parser.add_argument('-p','--problem', dest='problem',type=int,required=True)
@@ -15,11 +15,11 @@ dm= DataManager(TENSORBOARD_DIR)
 if args.problem==1:
     EPOCH = 50
     BATCH_SIZE = 128
-    TRAIN_FEATURE = 35840
+    TRAIN_FEATURE = 25088
     HIDDEN_DIM = 1024
     LABEL_DIM = 11
     DROPOUT = 0.5
-    LEARNING_RATE = 1E-5
+    LEARNING_RATE = 1E-4
     OUTPUT_PATH = './model/classifier.pt'
 
     train_path=['./dataset/trainx.npy','./dataset/trainy.npy']
@@ -46,14 +46,14 @@ if args.problem==1:
 #                      problem 2                               #
 ################################################################
 elif args.problem==2:
-    EPOCH =200
+    EPOCH =50
     BATCH_SIZE = 32
-    TRAIN_FEATURE = 35840
+    TRAIN_FEATURE = 25088
     HIDDEN_DIM = 1024
     LAYER_N = 3
+    LABEL_DIM = 11
     DROPOUT = 0.5
-    LEARNING_RATE = 1E-5
-    INPUT_PATH = './model/classifier.pt'
+    LEARNING_RATE = 1E-4
     OUTPUT_PATH = './model/rnn_classifier.pt'
 
     train_path=['./dataset/trainx.npy','./dataset/trainy.npy']
@@ -61,7 +61,7 @@ elif args.problem==2:
     #train_feature_dim= dm.get_data('./data/TrimmedVideos/video/train', './data/TrimmedVideos/label/gt_train.csv', save_path=train_path, batch_size= BATCH_SIZE, shuffle= True)
     #val_feature_dim= dm.get_data('./data/TrimmedVideos/video/valid', './data/TrimmedVideos/label/gt_valid.csv', save_path=val_path, batch_size= BATCH_SIZE, shuffle= True)
     #assert train_feature_dim == val_feature_dim
-    model= Rnn_Classifier(TRAIN_FEATURE, HIDDEN_DIM, LAYER_N, DROPOUT, INPUT_PATH).cuda()
+    model= Rnn_Classifier(TRAIN_FEATURE, HIDDEN_DIM, LAYER_N, LABEL_DIM,  DROPOUT ).cuda()
     model.save(OUTPUT_PATH)
 
     train_dataloader= ImageDataLoader(train_path[0], train_path[1],batch_size= BATCH_SIZE, shuffle= True)
@@ -76,6 +76,35 @@ elif args.problem==2:
             accu_record= record[1]
         print('-'*80)
 ################################################################
-#                      problem 2                               #
+#                      problem 3                               #
 ################################################################
-LAYER_N = 3
+elif args.problem==3:
+    EPOCH =50
+    BATCH_SIZE =  8
+    TRAIN_FEATURE = 25088
+    HIDDEN_DIM = 1024
+    LAYER_N = 3
+    LABEL_DIM = 11
+    DROPOUT = 0.5
+    LEARNING_RATE = 1E-5
+    OUTPUT_PATH = './model/rnn_movie.pt'
+
+    train_path=['./dataset/movie_trainx.npy','./dataset/movie_trainy.npy']
+    val_path=['./dataset/movie_valx.npy','./dataset/movie_valy.npy']
+    #train_feature_dim= dm.get_movie('./data/FullLengthVideos/videos/train', './data/FullLengthVideos/labels/train', save_path=train_path, cut= 350,batch_size= BATCH_SIZE, shuffle= True)
+    #val_feature_dim= dm.get_movie('./data/FullLengthVideos/videos/valid', './data/FullLengthVideos/labels/valid', save_path=val_path, batch_size= BATCH_SIZE, shuffle= True)
+    #assert train_feature_dim == val_feature_dim
+    model= Rnn_Classifier_Movie(TRAIN_FEATURE, HIDDEN_DIM, LAYER_N, LABEL_DIM,  DROPOUT ).cuda()
+    model.save(OUTPUT_PATH)
+
+    train_dataloader= MovieDataLoader(train_path[0], train_path[1],batch_size= BATCH_SIZE, shuffle= True)
+    val_dataloader= MovieDataLoader(val_path[0],val_path[1],batch_size= BATCH_SIZE, shuffle= True)
+
+    accu_record=0
+    for epoch in range(1,EPOCH+1):
+        dm.train_movie( model, train_dataloader, epoch, LEARNING_RATE)
+        record=dm.val_movie( model, val_dataloader, epoch)
+        if record[1]> accu_record:
+            model.save(OUTPUT_PATH)
+            accu_record= record[1]
+        print('-'*80)
