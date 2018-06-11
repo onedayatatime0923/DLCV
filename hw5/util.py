@@ -102,13 +102,13 @@ class DataManager():
         print('feature size: {}'.format(feature_size))
         return [x,y]
     def get_movie(self, video_path, tag_path=None, save_path= None, cut=sys.maxsize):
+        moviedir= os.listdir(video_path)
         if save_path!= None:
             if os.path.isfile(save_path[0]) and os.path.isfile(save_path[1]):
                 print('data has already been preprocessed!!!')
-                return [np.load(save_path[0]),np.load(save_path[1])]
+                return [np.load(save_path[0]),np.load(save_path[1])], moviedir
 
         self.set_feature_extractor()
-        moviedir= os.listdir(video_path)
         x=[]
         for m in moviedir:
             file_list = [file for file in os.listdir('{}/{}'.format(video_path,m)) if file.endswith('.jpg')]
@@ -144,7 +144,7 @@ class DataManager():
         print('data has been preprocessed!!!')
         print('feature size: {}'.format(feature_size))
         if tag_path is not None:
-            return [x, y]
+            return [x, y], moviedir
         else:
             return x, moviedir
     def train_classifier(self, model, dataloader, epoch, lr=1E-5, print_every= 10):
@@ -213,17 +213,17 @@ class DataManager():
             total_loss+= float(loss)* len(x)
             # accu
             pred = output.data.argmax(1) # get the index of the max log-probability
-            correct = pred.eq(y.data).long().cpu().sum()
+            correct = int(pred.eq(y.data).long().cpu().sum())
             batch_correct += correct/ len(x)
             total_correct += correct
             if batch_index% print_every== 0:
-                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                             epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
                             batch_loss/ print_every, 100.* batch_correct/ print_every,
                             self.timeSince(start, batch_index*len(x)/ data_size)),end='')
                 batch_loss= 0
                 batch_correct= 0
-        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {}% | Time: {}  '.format(
+        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
@@ -253,19 +253,19 @@ class DataManager():
             total_loss+= float(loss)* len(x)
             # accu
             pred = output.data.argmax(1) # get the index of the max log-probability
-            correct = pred.eq(y.data).long().cpu().sum()
+            correct = int(pred.eq(y.data).long().cpu().sum())
             batch_correct += correct/ len(x)
             total_correct += correct
             # result
             result.extend(output.data.argmax(1).unsqueeze(0))
             if batch_index% print_every== 0:
-                print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:2f}% | Time: {}  '.format(
+                print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                             epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
                             batch_loss/ print_every, 100.* batch_correct/ print_every,
                             self.timeSince(start, batch_index*len(x)/ data_size)),end='')
                 batch_loss= 0
                 batch_correct= 0
-        print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:2f}% | Time: {}  '.format(
+        print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
@@ -442,7 +442,7 @@ class DataManager():
                     self.timeSince(start, 1)))
         if self.writer != None:
             self.writer.add_scalar('Train Loss', float(total_loss)/ data_size, epoch)
-            self.writer.add_scalar('Train Accu',  100.*total_correct/ data_size, epoch)
+            self.writer.add_scalar('Train Accu',  100.*total_correct/ total_count, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
     def val_movie(self,model,dataloader, epoch, print_every= 10):
         start= time.time()
@@ -481,11 +481,11 @@ class DataManager():
                 batch_count = 0
         print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
-                    float(total_loss)/ data_size, 100.*total_correct/ batch_count,
+                    float(total_loss)/ data_size, 100.*total_correct/ total_count,
                     self.timeSince(start, 1)))
         if self.writer != None:
             self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
-            self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
+            self.writer.add_scalar('Val Accu',  100.*total_correct/ total_count, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
     def test_movie(self,model,dataloader, epoch, print_every= 10):
         start= time.time()
@@ -517,7 +517,7 @@ class DataManager():
             batch_count += count
             total_count += count
             if batch_index% print_every== 0:
-                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
+                print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                             epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
                             batch_loss/ print_every, 100.* batch_correct/ batch_count,
                             self.timeSince(start, batch_index*len(x)/ data_size)),end='')
@@ -527,9 +527,9 @@ class DataManager():
 
             result.extend(dataloader.reverse(output.data.argmax(2),sort_index).unsqueeze(0))
             index.extend(dataloader.reverse(i,sort_index).unsqueeze(0))
-        print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
+        print('\rTest Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.2f}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
-                    float(total_loss)/ data_size, 100.*total_correct/ batch_count,
+                    float(total_loss)/ data_size, 100.*total_correct/ total_count,
                     self.timeSince(start, 1)))
         result= torch.cat( result, 0).cpu()
         index= torch.cat( index, 0).cpu()
@@ -763,13 +763,13 @@ class MovieDataLoader():
         self.shuffle = shuffle
         self.max_len = max_len
     def __iter__(self):
-        self.index = list(range(len(self.label)))
+        self.index = list(range(len(self.image)))
         if self.shuffle: random.shuffle(self.index)
         self.start_index=0
-        self.end_index=min(len(self.label),self.start_index+self.batch_size)
+        self.end_index=min(len(self.image),self.start_index+self.batch_size)
         return self
     def __next__(self):
-        if self.start_index >= len(self.label):
+        if self.start_index >= len(self.image):
             raise StopIteration
         x,i,y=[], [], []
         for j in range(self.start_index,self.end_index):
@@ -784,14 +784,14 @@ class MovieDataLoader():
         sort_i= torch.index_select(torch.LongTensor(i), 0, sort_index)
         sort_y=nn.utils.rnn.pad_sequence( [y[i] for i in sort_index],batch_first=True)
         self.start_index+=self.batch_size
-        self.end_index=min(len(self.label),self.start_index+self.batch_size)
+        self.end_index=min(len(self.image),self.start_index+self.batch_size)
         #print(sort_x.size())
         #print(sort_i)
         #print(sort_y.size())
         #input()
         return sort_x,sort_i,sort_y, sort_index
     def __len__(self):
-        return len(self.label)
+        return len(self.image)
     def reverse(self, x, i):
         sort_index= torch.cuda.LongTensor(sorted(range(len(i)), key=lambda k: i[k]))
         sort_x= torch.index_select(x, 0, sort_index)

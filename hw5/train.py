@@ -6,14 +6,14 @@ from util import DataManager, ImageDataset, ImageDataLoader, MovieDataLoader,  C
 parser = argparse.ArgumentParser(description='DLCV HW5')
 parser.add_argument('-p','--problem', dest='problem',type=int,required=True)
 args = parser.parse_args()
-TENSORBOARD_DIR= './runs/train'
+TENSORBOARD_DIR= './runs/train_problem{}'.format(args.problem)
 dm= DataManager(TENSORBOARD_DIR)
 
 ################################################################
 #                      problem 1                               #
 ################################################################
 if args.problem==1:
-    EPOCH = 20
+    EPOCH = 50
     BATCH_SIZE = 128
     TRAIN_FEATURE = 25088
     HIDDEN_DIM = 1024
@@ -46,7 +46,7 @@ if args.problem==1:
 #                      problem 2                               #
 ################################################################
 elif args.problem==2:
-    EPOCH =20
+    EPOCH =50
     BATCH_SIZE = 32
     TRAIN_FEATURE = 25088
     HIDDEN_DIM = 1024
@@ -80,7 +80,7 @@ elif args.problem==2:
 #                      problem 3                               #
 ################################################################
 elif args.problem==3:
-    EPOCH =20
+    EPOCH =50
     BATCH_SIZE =  8
     TRAIN_FEATURE = 25088
     HIDDEN_DIM = 1024
@@ -90,13 +90,12 @@ elif args.problem==3:
     LEARNING_RATE = 1E-4
     OUTPUT_PATH = './model/rnn_movie.pt'
     TEST_DIR = './test/'
-    TEST_PATH = ['OP05-R07-Pizza', 'OP06-R05-Cheeseburger', 'OP01-R03-BaconAndEggs', 'OP02-R04-ContinentalBreakfast', 'OP03-R02-TurkeySandwich']
 
 
     train_path=['./dataset/movie_trainx.npy','./dataset/movie_trainy.npy']
     val_path=['./dataset/movie_valx.npy','./dataset/movie_valy.npy']
-    train_data= dm.get_movie('./data/FullLengthVideos/videos/train', './data/FullLengthVideos/labels/train', save_path=train_path, cut= 350)
-    val_data= dm.get_movie('./data/FullLengthVideos/videos/valid', './data/FullLengthVideos/labels/valid', save_path=val_path)
+    train_data, _= dm.get_movie('./data/FullLengthVideos/videos/train', './data/FullLengthVideos/labels/train', save_path=train_path, cut= 350)
+    val_data, test_path= dm.get_movie('./data/FullLengthVideos/videos/valid', './data/FullLengthVideos/labels/valid', save_path=val_path)
     model= Rnn_Classifier_Movie(TRAIN_FEATURE, HIDDEN_DIM, LAYER_N, LABEL_DIM,  DROPOUT ).cuda()
     model.save(OUTPUT_PATH)
 
@@ -110,5 +109,5 @@ elif args.problem==3:
         if record[1]> accu_record:
             model.save(OUTPUT_PATH)
             accu_record= record[1]
-            dm.write_movie(*dm.test_movie(model, val_dataloader, epoch),TEST_DIR, TEST_PATH)
+            dm.write_movie(*dm.test_movie(model, val_dataloader, epoch),TEST_DIR, test_path)
         print('-'*80)
