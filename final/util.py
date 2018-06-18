@@ -267,20 +267,38 @@ class CNN(nn.Module):
     def save(self, path):
         torch.save(self,path)
 class Classifier(nn.Module):
-    def __init__(self, dropout ):
+    def __init__(self, input_dim, hidden_dim, label_dim, dropout ):
         super(Classifier, self).__init__()
+        self.conv = models.vgg16_bn(pretrained=False).features
         self.fc = nn.Sequential(
-            nn.Linear(3840, 4096),
-            nn.ReLU(inplace=True),
+            nn.Linear(512 * (input_dim[1]//32) * (input_dim[2]//32), hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.SELU(inplace=True),
             nn.Dropout(dropout),
-            nn.Linear(4096, 4096),
-            nn.ReLU(inplace=True),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.SELU(inplace=True),
             nn.Dropout(dropout),
-            nn.Linear(4096, 2360),
+            nn.Linear(hidden_dim, label_dim),
         )
+        self._initialize_weights()
     def forward(self, x):
+        x = self.conv(x)
+        x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
     def save(self, path):
         torch.save(self,path)
 class AutoEncoder(nn.Module):
@@ -379,12 +397,23 @@ class ImageDataset(Dataset):
         self.image = image
         self.label = label
         self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    def aim(self, target):
+        self.target = target
+        index=[]
+        for i in range(len(self.label)):
+            for t in range(len(target)):
+                if self.label[i] in target[t]:
+                    index.append([i,t])
+        #print(index)
+        #input()
+        self.index = index
+        return self
     def __getitem__(self, i):
-        x=self.transform(torch.FloatTensor(self.image[i]).permute(2,0,1)/255)
-        y=torch.LongTensor([self.label[i]])
+        x=self.transform(torch.FloatTensor(self.image[self.index[i][0]]).permute(2,0,1)/255)
+        y=torch.LongTensor([self.index[i][1]])
         return x,y
     def __len__(self):
-        return len(self.image)
+        return len(self.index)
 class AEDataset(Dataset):
     def __init__(self, image=None, label=None):
         self.image = image
