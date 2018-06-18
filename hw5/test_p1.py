@@ -15,9 +15,9 @@ dm= DataManager()
 
 BATCH_SIZE = 128
 INPUT_PATH = './model/classifier.pt'
-TEST_PATH = args.output
 VIDEO_DIR = args.video_dir
 TAG = args.tag
+TEST_PATH = '{}/p1_valid.txt'.format(args.output)
 
 valx, valy= dm.get_data(VIDEO_DIR, TAG, save_path=None)
 model= torch.load(INPUT_PATH)

@@ -62,6 +62,7 @@ elif args.problem==2:
     train_data=dm.get_data('./data/TrimmedVideos/video/train', './data/TrimmedVideos/label/gt_train.csv', save_path=train_path)
     val_data =dm.get_data('./data/TrimmedVideos/video/valid', './data/TrimmedVideos/label/gt_valid.csv', save_path=val_path)
     model= Rnn_Classifier(TRAIN_FEATURE, HIDDEN_DIM, LAYER_N, LABEL_DIM,  DROPOUT ).cuda()
+    print(model)
     model.save(OUTPUT_PATH)
 
     train_dataloader= ImageDataLoader(train_data[0], train_data[1],batch_size= BATCH_SIZE, shuffle= True)
@@ -97,6 +98,7 @@ elif args.problem==3:
     train_data, _= dm.get_movie('./data/FullLengthVideos/videos/train', './data/FullLengthVideos/labels/train', save_path=train_path, cut= 350)
     val_data, test_path= dm.get_movie('./data/FullLengthVideos/videos/valid', './data/FullLengthVideos/labels/valid', save_path=val_path)
     model= Rnn_Classifier_Movie(TRAIN_FEATURE, HIDDEN_DIM, LAYER_N, LABEL_DIM,  DROPOUT ).cuda()
+    print(model)
     model.save(OUTPUT_PATH)
 
     train_dataloader= MovieDataLoader(train_data[0], train_data[1],batch_size= BATCH_SIZE, shuffle= True)

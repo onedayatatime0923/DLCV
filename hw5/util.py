@@ -14,6 +14,8 @@ from skvideo import io
 from scipy import misc
 from PIL import Image
 import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 assert torch and F and skimage and plt and DataLoader and sys
 
 class DataManager():
@@ -567,7 +569,19 @@ class DataManager():
     def write_movie(self, data, index, path_dir, path_list):
         for i in range(len(data)):
             self.write(data[i][:int(index[i])],'{}/{}.txt'.format(path_dir,path_list[i]))
-        
+    def visualize_latent_space(self, data, label, path):
+        color= ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w','tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
+
+        print('PCA data reduct...',end='')
+        data=PCA(n_components=4).fit_transform(data)
+        print('\rTSNE data reduct...',end='')
+        data= TSNE(n_components=2, random_state=23).fit_transform(data)
+        print('                       \r',end='')
+        plt.figure()
+        for i in range(len(data)):
+            plt.scatter(data[i,0], data[i,1], s= 5, c= color[label[i]])
+        #plt.show()
+        plt.savefig(path)
 
 class Vgg16_feature_extractor(nn.Module):
     def __init__(self):
