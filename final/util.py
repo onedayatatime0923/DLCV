@@ -89,7 +89,6 @@ class DataManager():
                     epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
-        del x,y
         if self.writer != None:
             self.writer.add_scalar('Train Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Train Accu',  100.*total_correct/ data_size, epoch)
@@ -129,7 +128,6 @@ class DataManager():
                     epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
                     self.timeSince(start, 1)))
-        del x,y
         if self.writer != None:
             self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
@@ -252,19 +250,23 @@ class CNN(nn.Module):
         self.conv = models.vgg16_bn(pretrained=pretrained).features
         self.fc = nn.Sequential(
             nn.Linear(512 * 6 * 5, 4096),
+            nn.BatchNorm1d(4096),
             nn.ReLU(inplace=True),
             nn.Dropout(dropout),
             nn.Linear(4096, 4096),
+            nn.BatchNorm1d(4096),
             nn.ReLU(inplace=True),
             nn.Dropout(dropout),
             nn.Linear(4096, 2360),
         )
+        self.transform = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self._initialize_weights()
-    def forward(self, input):
-        out = self.conv(input)
-        out = out.view(out.size(0),-1)
-        out = self.fc(out)
-        return out
+    def forward(self, x):
+        x= self.transform(x.float()/255)
+        x = self.conv(x)
+        x = x.view(x.size(0),-1)
+        x = self.fc(x)
+        return x
     def save(self, path):
         torch.save(self,path)
     def _initialize_weights(self):
@@ -410,10 +412,8 @@ class EasyDataset(Dataset):
     def __init__(self, image=None, label=None):
         self.image = image
         self.label = label
-        self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     def __getitem__(self, i):
-        x=self.transform(torch.FloatTensor(self.image[i]).permute(2,0,1)/255)
-        #x=torch.FloatTensor(self.image[i]).permute(2,0,1)/255
+        x=torch.LongTensor(self.image[i]).permute(2,0,1)
         y=torch.LongTensor([self.label[i]])
         return x,y
     def __len__(self):
