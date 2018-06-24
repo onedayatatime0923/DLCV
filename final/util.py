@@ -49,7 +49,7 @@ class DataManager():
         np.save(save_path[0],x)
         np.save(save_path[1],y)
         return x, y
-    def train_classifier(self, model, dataloader, epoch, optimizer, print_every= 10):
+    def train_classifier(self, model, dataloader, epoch, optimizer, print_every= 2):
         start= time.time()
         model.train()
         
@@ -93,7 +93,7 @@ class DataManager():
             self.writer.add_scalar('Train Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Train Accu',  100.*total_correct/ data_size, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
-    def val_classifier(self,model,dataloader, epoch, print_every= 10):
+    def val_classifier(self,model,dataloader, epoch, print_every= 2):
         start= time.time()
         model.eval()
         
