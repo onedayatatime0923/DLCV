@@ -273,11 +273,11 @@ class Classifier(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(512 * (input_dim[1]//32) * (input_dim[2]//32), hidden_dim),
             nn.BatchNorm1d(hidden_dim),
-            nn.SELU(inplace=True),
+            nn.ReLU(inplace=True),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
-            nn.SELU(inplace=True),
+            nn.ReLU(inplace=True),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, label_dim),
         )
@@ -409,7 +409,8 @@ class ImageDataset(Dataset):
         self.index = index
         return self
     def __getitem__(self, i):
-        x=self.transform(torch.FloatTensor(self.image[self.index[i][0]]).permute(2,0,1)/255)
+        #x=self.transform(torch.FloatTensor(self.image[self.index[i][0]]).permute(2,0,1)/255)
+        x=torch.FloatTensor(self.image[self.index[i][0]]).permute(2,0,1)/255
         y=torch.LongTensor([self.index[i][1]])
         return x,y
     def __len__(self):

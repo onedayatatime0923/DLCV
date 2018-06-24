@@ -16,18 +16,19 @@ TENSORBOARD_DIR= './runs/train'
 dm= DataManager(tensorboard_dir= TENSORBOARD_DIR)
 
 EPOCH = 50
-BATCH_SIZE =  16
+BATCH_SIZE =  32
 HIDDEN_DIM = 4096
 DROPOUT = 0.5
 LEARNING_RATE = 1E-3
-OUTPUT_PATH = './model/model.pt'
+OUTPUT_PATH = ['./model/model{}.pt'.format(i) for i in range(10)]
 OUTPUT_CHARACTER = 'data/character.txt'
-TARGET = [[i] for i in range(50)]
+TARGET = [[i] for i in range(2630)]
 
-val_path=['./data/valx.npy','./data/valy.npy']
 train_path=['./data/trainx.npy','./data/trainy.npy']
-val_data=dm.readfile('./dataset/val', './dataset/val_id.txt', save_path=val_path)
+val_path=['./data/valx.npy','./data/valy.npy']
 train_data=dm.readfile('./dataset/train/', './dataset/train_id.txt', save_path=train_path)
+val_data=dm.readfile('./dataset/val', './dataset/val_id.txt', save_path=val_path)
+#dm.character.save(OUTPUT_CHARACTER)
 print('train_x shape:{}'.format(train_data[0].shape))
 print('train_y shape:{}'.format(train_data[1].shape))
 print('val_x shape:{}'.format(val_data[0].shape))
@@ -43,7 +44,7 @@ model= Classifier(input_dim, HIDDEN_DIM, label_dim, DROPOUT).cuda()
 train_dataset = ImageDataset(*train_data).aim(TARGET)
 train_dataloader= DataLoader(train_dataset, batch_size= BATCH_SIZE, shuffle= True)
 val_dataset = ImageDataset(*val_data).aim(TARGET)
-val_dataloader= DataLoader(val_dataset, batch_size= BATCH_SIZE, shuffle= False)
+val_dataloader= DataLoader(val_dataset, batch_size= 2, shuffle= False)
 
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)
 
@@ -53,7 +54,7 @@ for epoch in range(1,EPOCH+1):
     dm.train_classifier( model, train_dataloader, epoch, optimizer)
     record=dm.val_classifier( model, val_dataloader, epoch)
     if record[1]> accu_record:
-        model.save(OUTPUT_PATH)
+        model.save(OUTPUT_PATH[0])
         accu_record= record[1]
         print('model saved')
     print('='*80)

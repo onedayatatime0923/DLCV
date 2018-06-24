@@ -20,20 +20,19 @@ BATCH_SIZE = 16
 LABEL_DIM = 11
 DROPOUT = 0.5
 LEARNING_RATE = 1E-3
-PRETRAIN = True
-OUTPUT_PATH = './model/pretrained.pt'
+PRETRAIN = False
+OUTPUT_PATH = './model/model.pt'
 OUTPUT_CHARACTER = 'data/character.txt'
 
 train_path=['./data/trainx.npy','./data/trainy.npy']
 val_path=['./data/valx.npy','./data/valy.npy']
 val_data=dm.readfile('./dataset/val', './dataset/val_id.txt', save_path=val_path)
 train_data=dm.readfile('./dataset/train/', './dataset/train_id.txt', save_path=train_path)
-dm.character.save(OUTPUT_CHARACTER)
-'''
+#dm.character.save(OUTPUT_CHARACTER)
 
 model= CNN(PRETRAIN).cuda()
 
-optimizer = torch.optim.Adam(model.fc.parameters(),lr=LEARNING_RATE)
+optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)
 
 train_dataloader= DataLoader(ImageDataset(*train_data),batch_size= BATCH_SIZE, shuffle= True)
 val_dataloader= DataLoader(ImageDataset(*val_data),batch_size= BATCH_SIZE, shuffle= False)
@@ -46,4 +45,3 @@ for epoch in range(1,EPOCH+1):
         #model.save(OUTPUT_PATH)
         accu_record= record[1]
     print('='*80)
-'''
