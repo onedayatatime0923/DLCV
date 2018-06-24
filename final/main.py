@@ -2,9 +2,9 @@
 
 import torch
 from torch.utils.data import DataLoader
-from util import DataManager, CNN, ClassifierDataset
+from util import DataManager, CNN, EasyDataset
 import argparse
-assert torch and DataLoader and CNN and ClassifierDataset
+assert torch and DataLoader and CNN and EasyDataset
 
 
 parser = argparse.ArgumentParser(description='DLCV Final')
@@ -34,8 +34,8 @@ model= CNN(PRETRAIN).cuda()
 
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)
 
-train_dataloader= DataLoader(ClassifierDataset(*train_data),batch_size= BATCH_SIZE, shuffle= True)
-val_dataloader= DataLoader(ClassifierDataset(*val_data),batch_size= BATCH_SIZE, shuffle= False)
+train_dataloader= DataLoader(EasyDataset(*train_data),batch_size= BATCH_SIZE, shuffle= True)
+val_dataloader= DataLoader(EasyDataset(*val_data),batch_size= BATCH_SIZE, shuffle= False)
 
 accu_record=0
 for epoch in range(1,EPOCH+1):

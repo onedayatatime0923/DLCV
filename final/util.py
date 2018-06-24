@@ -410,6 +410,7 @@ class EasyDataset(Dataset):
     def __init__(self, image=None, label=None):
         self.image = image
         self.label = label
+        self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     def __getitem__(self, i):
         x=self.transform(torch.FloatTensor(self.image[i]).permute(2,0,1)/255)
         #x=torch.FloatTensor(self.image[i]).permute(2,0,1)/255
