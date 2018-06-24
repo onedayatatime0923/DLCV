@@ -16,7 +16,7 @@ TENSORBOARD_DIR= './runs/train'
 dm= DataManager(tensorboard_dir= TENSORBOARD_DIR)
 
 EPOCH = 50
-BATCH_SIZE = 32
+BATCH_SIZE = 48
 LEARNING_RATE = 1E-4
 PRETRAIN = False
 OUTPUT_PATH = './model/model.pt'
