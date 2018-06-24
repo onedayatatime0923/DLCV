@@ -413,7 +413,7 @@ class EasyDataset(Dataset):
         self.image = image
         self.label = label
     def __getitem__(self, i):
-        x=torch.FloatTensor(self.image[i]).permute(2,0,1)
+        x=torch.LongTensor(self.image[i]).permute(2,0,1)
         y=torch.LongTensor([self.label[i]])
         return x,y
     def __len__(self):
