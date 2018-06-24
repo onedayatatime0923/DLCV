@@ -262,8 +262,8 @@ class CNN(nn.Module):
         self.transform = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self._initialize_weights()
     def forward(self, x):
-        x= self.transform(x.float()/255)
-        x = self.conv(x)
+        #x= self.transform(x.float()/255)
+        x = self.conv(x.float()/255)
         x = x.view(x.size(0),-1)
         x = self.fc(x)
         return x
@@ -413,7 +413,7 @@ class EasyDataset(Dataset):
         self.image = image
         self.label = label
     def __getitem__(self, i):
-        x=torch.LongTensor(self.image[i]).permute(2,0,1)
+        x=torch.FloatTensor(self.image[i]).permute(2,0,1)
         y=torch.LongTensor([self.label[i]])
         return x,y
     def __len__(self):
