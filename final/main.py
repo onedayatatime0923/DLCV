@@ -35,7 +35,7 @@ model= CNN(PRETRAIN).cuda()
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)
 
 train_dataloader= DataLoader(ClassifierDataset(*train_data),batch_size= BATCH_SIZE, shuffle= True)
-val_dataloader= DataLoader(ClassifierImageDataset(*val_data),batch_size= BATCH_SIZE, shuffle= False)
+val_dataloader= DataLoader(ClassifierDataset(*val_data),batch_size= BATCH_SIZE, shuffle= False)
 
 accu_record=0
 for epoch in range(1,EPOCH+1):
