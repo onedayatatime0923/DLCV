@@ -406,30 +406,19 @@ class Character:
             for line in f:
                 character=line.replace('\n','')
                 self.addCharacter(character)
-class ImageDataset(Dataset):
+class EasyDataset(Dataset):
     def __init__(self, image=None, label=None):
         self.image = image
         self.label = label
         self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    def aim(self, target):
-        self.target = target
-        index=[]
-        for i in range(len(self.label)):
-            for t in range(len(target)):
-                if self.label[i] in target[t]:
-                    index.append([i,t])
-        #print(index)
-        #input()
-        self.index = index
-        return self
     def __getitem__(self, i):
-        #x=self.transform(torch.FloatTensor(self.image[self.index[i][0]]).permute(2,0,1)/255)
-        x=torch.FloatTensor(self.image[self.index[i][0]]).permute(2,0,1)/255
-        y=torch.LongTensor([self.index[i][1]])
+        x=self.transform(torch.FloatTensor(self.image[i]).permute(2,0,1)/255)
+        #x=torch.FloatTensor(self.image[i]).permute(2,0,1)/255
+        y=torch.LongTensor([self.label[i]])
         return x,y
     def __len__(self):
-        return len(self.index)
-class ImageDataset_aim(Dataset):
+        return len(self.image)
+class ImageDataset(Dataset):
     def __init__(self, image=None, label=None):
         self.image = image
         self.label = label
