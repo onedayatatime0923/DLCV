@@ -15,6 +15,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.decomposition import PCA, TruncatedSVD
 import matplotlib.pyplot as plt
+import pandas as pd
 assert Variable and F and DataLoader and torchvision and random and misc and plt
 
 
@@ -41,7 +42,6 @@ class DataManager():
                 labels = [line.strip().split(' ')[1] for line in f]
         for idx, file in enumerate(file_list):
                 img = io.imread(os.path.join(dir_path, file))
-                #img = skimage.transform.resize(img,(224,224), preserve_range=True)
                 x.append(img)
                 y.append(self.character.addCharacter(labels[idx]))
                 print('\rreading image from {}...{}'.format(dir_path,len(x)),end='')
@@ -51,6 +51,21 @@ class DataManager():
         np.save(save_path[0],x)
         np.save(save_path[1],y)
         return x, y
+    def readtestfile(self, dir_path, save_path ):
+        if os.path.isfile(save_path):
+            x = np.load(save_path)
+            return x
+        file_list = [filename for filename in os.listdir(dir_path)]
+        file_list.sort()
+        x = []
+        for idx, file in enumerate(file_list):
+                img = io.imread(os.path.join(dir_path, file))
+                x.append(img)
+                print('\rreading image from {}...{}'.format(dir_path,len(x)),end='')
+        print('\rreading image from {}...finished'.format(dir_path))
+        x = np.array(x)
+        np.save(save_path,x)
+        return x
     def train_classifier(self, model, dataloader, epoch, optimizer, print_every= 2):
         start= time.time()
         model.train()
@@ -135,6 +150,27 @@ class DataManager():
             self.writer.add_scalar('Val Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Val Accu',  100.*total_correct/ data_size, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
+    def test_classifier(self,model,dataloader, print_every= 2):
+        start= time.time()
+        model.eval()
+        
+        data_size= len(dataloader.dataset)
+        result = []
+        for b, x in enumerate(dataloader):
+            with torch.no_grad():
+                batch_index=b+1
+                x = Variable(x).cuda()
+                output= model(x)
+                pred = output.data.argmax(1) # get the index of the max log-probability
+                result.append(pred)
+                if batch_index% print_every== 0:
+                    print('\rTest | [{}/{} ({:.0f}%)] | Time: {}  '.format(
+                            batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
+                            self.timeSince(start, batch_index*len(x)/ data_size)),end='')
+        print('\rTest | [{}/{} ({:.0f}%)] | Time: {}  '.format(
+                    data_size, data_size, 100., self.timeSince(start, 1)))
+        result = torch.cat(result, 0)
+        return result
     def train_AE(self, model, dataloader, epoch, optimizer, print_every= 10):
         start= time.time()
         model.train()
@@ -246,10 +282,20 @@ class DataManager():
         m = math.floor(s / 60)
         s -= m * 60
         return '%dm %ds' % (m, s)
+    def count_parameters(self,model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    def write(self,test,path):
+        #write data to path.
+        test=np.array([[self.character.index2character[int(i)] for i in test]]).T
+        idx=np.array([[j for j in range(1,len(test)+1)]]).T
+        output=np.hstack((idx,test))
+        myoutput=pd.DataFrame(output,columns=["id","ans"])
+        myoutput.to_csv(path,index=False)
 
-class CNN(nn.Module):
+
+class CNN_vgg16(nn.Module):
     def __init__(self, dropout, pretrained=False):
-        super(CNN, self).__init__()
+        super(CNN_vgg16, self).__init__()
         self.conv = models.vgg16_bn(pretrained=pretrained).features
         self.fc = nn.Sequential(
             nn.Linear(512 * 6 * 5, 4096),
@@ -263,7 +309,7 @@ class CNN(nn.Module):
             nn.Linear(4096, 2360),
         )
         self.transform =transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        self._initialize_weights()
+        self._initialize_weights_vgg()
     def forward(self, x):
         x = self.conv(x)
         x = x.view(x.size(0),-1)
@@ -271,7 +317,7 @@ class CNN(nn.Module):
         return x
     def save(self, path):
         torch.save(self,path)
-    def _initialize_weights(self):
+    def _initialize_weights_vgg(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -282,6 +328,101 @@ class CNN(nn.Module):
                 nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
+    def _initialize_weights_densenet(self):
+        # Official init from torch repo.
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.constant_(m.bias, 0)
+class CNN_densenet161(nn.Module):
+    def __init__(self, dropout, pretrained=False):
+        super(CNN_densenet161, self).__init__()
+        self.model = models.densenet161(pretrained=pretrained,num_classes=2630)
+        self._initialize_weights_vgg()
+    def forward(self, x):
+        features = self.model.features(x)
+        out = F.relu(features, inplace=True)
+        out = F.avg_pool2d(out, kernel_size=(6,5), stride=1).view(features.size(0), -1)
+        out = self.model.classifier(out)
+        return out
+    def save(self, path):
+        torch.save(self,path)
+    def _initialize_weights_vgg(self):
+        for m in self.model.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
+    def _initialize_weights_densenet(self):
+        # Official init from torch repo.
+        for m in self.model.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.constant_(m.bias, 0)
+class CNN_squeezenet(nn.Module):
+    def __init__(self, dropout, pretrained=False):
+        super(CNN_squeezenet, self).__init__()
+        self.features = models.squeezenet1_1(pretrained=pretrained).features
+        self.final_conv = nn.Conv2d(512, 2630, kernel_size=1)
+        self.classifier = nn.Sequential(
+            nn.Dropout(dropout),
+            self.final_conv,
+            nn.ReLU(inplace=True),
+            nn.AvgPool2d((13, 11), stride=1)
+        )
+        self._initialize_weights_densenet()
+    def forward(self, x):
+        x = self.features(x)
+        x = self.classifier(x)
+        x = x.view(x.size(0), -1)
+        return x
+    def save(self, path):
+        torch.save(self,path)
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                if m is self.final_conv:
+                    nn.init.normal_(m.weight, mean=0.0, std=0.01)
+                else:
+                    nn.init.kaiming_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+    def _initialize_weights_vgg(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
+    def _initialize_weights_densenet(self):
+        # Official init from torch repo.
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
 
 class Classifier(nn.Module):
@@ -370,10 +511,9 @@ class Encoder(nn.Module):
         return x
     def save(self, path):
         torch.save(self,path)
-
 class Feature_extractor(nn.Module):
     def __init__(self, dropout, pretrained=True):
-        super(CNN, self).__init__()
+        super(Feature_extractor, self).__init__()
         self.conv = models.vgg16_bn(pretrained=pretrained).features
     def forward(self, x):
         x = x.view(x.size(0),-1)
@@ -412,13 +552,13 @@ class Character:
                 self.addCharacter(character)
 
 class EasyDataset(Dataset):
-    def __init__(self, image, label, flip = True, rotate = True, angle = 5):
+    def __init__(self, image, label= None, flip = False, rotate = False, angle = 5):
         self.image = image
         self.label = label
 
         self.flip_n= int(flip)+1
         self.rotate= rotate
-        self.transform_rotate= transforms.Compose([transforms.ToPILImage(), transforms.RandomRotation(5),
+        self.transform_rotate= transforms.Compose([transforms.ToPILImage(), transforms.RandomRotation(angle),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
         self.transform_norotate= transforms.Compose([transforms.ToTensor(),
@@ -433,8 +573,11 @@ class EasyDataset(Dataset):
         if self.rotate: x= self.transform_rotate(x)
         else: x= self.transform_norotate(x)
 
-        y=torch.LongTensor([self.label[index]])
-        return x,y
+        if self.label is not None:
+            y=torch.LongTensor([self.label[index]])
+            return x,y
+        else :
+            return x
     def __len__(self):
         return len(self.image)*self.flip_n
 class ImageDataset(Dataset):
