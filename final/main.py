@@ -16,8 +16,9 @@ TENSORBOARD_DIR= './runs/train'
 dm= DataManager(tensorboard_dir= TENSORBOARD_DIR)
 
 EPOCH = 50
-BATCH_SIZE = 48
+BATCH_SIZE = 32
 LEARNING_RATE = 1E-4
+DROPOUT = 0.5
 PRETRAIN = False
 OUTPUT_PATH = './model/model.pt'
 OUTPUT_CHARACTER = 'data/character.txt'
@@ -28,7 +29,7 @@ val_data=dm.readfile('./dataset/val', './dataset/val_id.txt', save_path=val_path
 train_data=dm.readfile('./dataset/train/', './dataset/train_id.txt', save_path=train_path)
 #dm.character.save(OUTPUT_CHARACTER)
 
-model= CNN(PRETRAIN).cuda()
+model= CNN(DROPOUT, PRETRAIN).cuda()
 
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)
 
