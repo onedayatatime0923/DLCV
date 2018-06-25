@@ -421,6 +421,7 @@ class EasyDataset(Dataset):
         self.transform_normalize= transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self.transform_rotate= transforms.Compose([transforms.ToPILImage(), transforms.RandomRotation(5),
             transforms.ToTensor()])
+        self.transform_toTensor= transforms.ToTensor()
         self.angle= angle
     def __getitem__(self, i):
         index= i// self.flip_n 
@@ -429,6 +430,7 @@ class EasyDataset(Dataset):
         if flip == True: x= np.flip(self.image[index],1).copy()
         else: x= self.image[index]
         if self.rotate: x= self.transform_rotate(x)
+        else: x= self.transform_toTensor(x)
         x=self.transform_normalize(x)
 
         y=torch.LongTensor([self.label[index]])

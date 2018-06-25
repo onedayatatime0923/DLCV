@@ -38,8 +38,8 @@ val_dataloader= DataLoader(EasyDataset(*val_data, flip = False, rotate = False),
 
 accu_record=0
 for epoch in range(1,EPOCH+1):
-    dm.train_classifier( model, train_dataloader, epoch, optimizer)
     record=dm.val_classifier( model, val_dataloader, epoch)
+    dm.train_classifier( model, train_dataloader, epoch, optimizer)
     if record[1]> accu_record:
         #model.save(OUTPUT_PATH)
         accu_record= record[1]
