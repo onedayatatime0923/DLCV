@@ -1,7 +1,8 @@
 
-import os, time, math
+import os, time, math, random
 from skimage import io
 import numpy as np
+from scipy import misc
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -416,17 +417,16 @@ class EasyDataset(Dataset):
 
         self.flip_n= int(flip)+1
         self.rotate= rotate
-        self.transform_normalize= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        self.transform_rotate= torchvision.transforms.RandomRotation(5)
+        self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.angle= angle
     def __getitem__(self, i):
         index= i// self.flip_n 
         flip = bool( i % self.flip_n )
 
         if flip == True: x= np.flip(self.image[index],1).copy()
         else: x= self.image[index]
-        #x=torch.FloatTensor(x).permute(2,0,1)/255
-        x=self.transform_normalize(torch.FloatTensor(x).permute(2,0,1)/255)
-        if self.rotate: x=self.transform_rotate(x)
+        if self.rotate: x= misc.imrotate(x, random.uniform(-self.angle, self.angle))
+        x=self.transform(torch.FloatTensor(x).permute(2,0,1)/255)
 
         y=torch.LongTensor([self.label[index]])
         return x,y
