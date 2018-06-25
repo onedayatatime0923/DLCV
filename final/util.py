@@ -8,13 +8,14 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 import torchvision
-from torchvision import models
+from torchvision import models, transforms
 from torch.utils.data import Dataset,DataLoader
 from tensorboardX import SummaryWriter
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.decomposition import PCA, TruncatedSVD
-assert Variable and F and DataLoader
+import matplotlib.pyplot as plt
+assert Variable and F and DataLoader and torchvision and random and misc and plt
 
 
 class DataManager():
@@ -201,7 +202,7 @@ class DataManager():
         if os.path.isfile(save_path):
             x = np.load(save_path)
             return x
-        transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transform= transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         feature = []
         for i in range(len(data)):
             #print(transform(torch.FloatTensor(data[i]).permute(2,0,1)/255).cuda().unsqueeze(0).size())
@@ -261,7 +262,7 @@ class CNN(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(4096, 2360),
         )
-        self.transform = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.transform =transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self._initialize_weights()
     def forward(self, x):
         x = self.conv(x)
@@ -417,7 +418,9 @@ class EasyDataset(Dataset):
 
         self.flip_n= int(flip)+1
         self.rotate= rotate
-        self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.transform_normalize= transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.transform_rotate= transforms.Compose([transforms.ToPILImage(), transforms.RandomRotation(5),
+            transforms.ToTensor()])
         self.angle= angle
     def __getitem__(self, i):
         index= i// self.flip_n 
@@ -425,8 +428,8 @@ class EasyDataset(Dataset):
 
         if flip == True: x= np.flip(self.image[index],1).copy()
         else: x= self.image[index]
-        if self.rotate: x= misc.imrotate(x, random.uniform(-self.angle, self.angle))
-        x=self.transform(torch.FloatTensor(x).permute(2,0,1)/255)
+        if self.rotate: x= self.transform_rotate(x)
+        x=self.transform_normalize(x)
 
         y=torch.LongTensor([self.label[index]])
         return x,y
@@ -436,7 +439,7 @@ class ImageDataset(Dataset):
     def __init__(self, image=None, label=None):
         self.image = image
         self.label = label
-        self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.transform= transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     def aim(self, target):
         self.target = target
         index=[]
@@ -458,7 +461,7 @@ class ImageDataset(Dataset):
 class AEDataset(Dataset):
     def __init__(self, image=None, label=None):
         self.image = image
-        self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.transform= transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     def __getitem__(self, i):
         x=self.transform(torch.FloatTensor(self.image[i]).permute(2,0,1)/255)
         return x
