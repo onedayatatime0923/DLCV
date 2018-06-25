@@ -13,7 +13,6 @@ from tensorboardX import SummaryWriter
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.decomposition import PCA, TruncatedSVD
-import matplotlib.pyplot as plt
 assert Variable and F and DataLoader
 
 
@@ -417,19 +416,17 @@ class EasyDataset(Dataset):
 
         self.flip_n= int(flip)+1
         self.rotate= rotate
-        self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.transform_normalize= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        self.transform_rotate= torchvision.transforms.RandomRotation(5)
     def __getitem__(self, i):
         index= i// self.flip_n 
         flip = bool( i % self.flip_n )
 
-        if flip == True: 
-            x= np.flip(self.image[index],0).copy()
-            plt.imshow(x)
-            plt.show()
+        if flip == True: x= np.flip(self.image[index],1).copy()
         else: x= self.image[index]
         #x=torch.FloatTensor(x).permute(2,0,1)/255
-        x=self.transform(torch.FloatTensor(x).permute(2,0,1)/255)
-        if self.rotate: x=torchvision.transforms.RandomRotation(5)
+        x=self.transform_normalize(torch.FloatTensor(x).permute(2,0,1)/255)
+        if self.rotate: x=self.transform_rotate(x)
 
         y=torch.LongTensor([self.label[index]])
         return x,y
