@@ -424,8 +424,6 @@ class EasyDataset(Dataset):
 
         if flip == True: 
             x= np.flip(self.image[index],0).copy()
-            plt.imshow(x)
-            plt.show()
         else: x= self.image[index]
         #x=torch.FloatTensor(x).permute(2,0,1)/255
         x=self.transform(torch.FloatTensor(x).permute(2,0,1)/255)

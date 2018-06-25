@@ -16,7 +16,7 @@ TENSORBOARD_DIR= './runs/train'
 dm= DataManager(tensorboard_dir= TENSORBOARD_DIR)
 
 EPOCH = 50
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 LEARNING_RATE = 1E-4
 DROPOUT = 0.5
 PRETRAIN = False
