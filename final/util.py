@@ -49,7 +49,7 @@ class DataManager():
         np.save(save_path[0],x)
         np.save(save_path[1],y)
         return x, y
-    def train_classifier(self, model, dataloader, epoch, optimizer, print_every= 10):
+    def train_classifier(self, model, dataloader, epoch, optimizer, print_every= 2):
         start= time.time()
         model.train()
         
@@ -93,7 +93,7 @@ class DataManager():
             self.writer.add_scalar('Train Loss', float(total_loss)/ data_size, epoch)
             self.writer.add_scalar('Train Accu',  100.*total_correct/ data_size, epoch)
         return float(total_loss)/ data_size, 100. * total_correct/ data_size
-    def val_classifier(self,model,dataloader, epoch, print_every= 10):
+    def val_classifier(self,model,dataloader, epoch, print_every= 2):
         start= time.time()
         model.eval()
         
@@ -105,25 +105,26 @@ class DataManager():
         
         data_size= len(dataloader.dataset)
         for b, (x, y) in enumerate(dataloader):
-            batch_index=b+1
-            x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
-            output= model(x)
-            loss = criterion(output,y)
-            # loss
-            batch_loss+= float(loss)
-            total_loss+= float(loss)* len(x)
-            # accu
-            pred = output.data.argmax(1) # get the index of the max log-probability
-            correct = int(pred.eq(y.data).long().cpu().sum())
-            batch_correct += correct/ len(x)
-            total_correct += correct
-            if batch_index% print_every== 0:
-                print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.4f}% | Time: {}  '.format(
+            with torch.no_grad():
+                batch_index=b+1
+                x, y= Variable(x).cuda(), Variable(y).squeeze(1).cuda()
+                output= model(x)
+                loss = criterion(output,y)
+                # loss
+                batch_loss+= float(loss)
+                total_loss+= float(loss)* len(x)
+                # accu
+                pred = output.data.argmax(1) # get the index of the max log-probability
+                correct = int(pred.eq(y.data).long().cpu().sum())
+                batch_correct += correct/ len(x)
+                total_correct += correct
+                if batch_index% print_every== 0:
+                    print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.4f}% | Time: {}  '.format(
                             epoch , batch_index*len(x), data_size, 100. * batch_index*len(x)/ data_size,
                             batch_loss/ print_every, 100.* batch_correct/ print_every,
                             self.timeSince(start, batch_index*len(x)/ data_size)),end='')
-                batch_loss= 0
-                batch_correct= 0
+                    batch_loss= 0
+                    batch_correct= 0
         print('\rVal Epoch: {} | [{}/{} ({:.0f}%)] | Loss: {:.6f} | Accu: {:.4f}% | Time: {}  '.format(
                     epoch , data_size, data_size, 100.,
                     float(total_loss)/ data_size, 100.*total_correct/ data_size,
@@ -262,8 +263,7 @@ class CNN(nn.Module):
         self.transform = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self._initialize_weights()
     def forward(self, x):
-        #x= self.transform(x.float()/255)
-        x = self.conv(x.float()/255)
+        x = self.conv(x)
         x = x.view(x.size(0),-1)
         x = self.fc(x)
         return x
@@ -412,8 +412,9 @@ class EasyDataset(Dataset):
     def __init__(self, image=None, label=None):
         self.image = image
         self.label = label
+        self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     def __getitem__(self, i):
-        x=torch.LongTensor(self.image[i]).permute(2,0,1)
+        x=self.transform(torch.FloatTensor(self.image[i]).permute(2,0,1)/255)
         y=torch.LongTensor([self.label[i]])
         return x,y
     def __len__(self):
