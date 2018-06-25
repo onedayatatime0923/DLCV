@@ -13,6 +13,7 @@ from tensorboardX import SummaryWriter
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.decomposition import PCA, TruncatedSVD
+import matplotlib.pyplot as plt
 assert Variable and F and DataLoader
 
 
@@ -246,7 +247,7 @@ class DataManager():
         return '%dm %ds' % (m, s)
 
 class CNN(nn.Module):
-    def __init__(self, dropout, pretrained=True):
+    def __init__(self, dropout, pretrained=False):
         super(CNN, self).__init__()
         self.conv = models.vgg16_bn(pretrained=pretrained).features
         self.fc = nn.Sequential(
@@ -408,17 +409,32 @@ class Character:
             for line in f:
                 character=line.replace('\n','')
                 self.addCharacter(character)
+
 class EasyDataset(Dataset):
-    def __init__(self, image=None, label=None):
+    def __init__(self, image, label, flip = True, rotate = True, angle = 5):
         self.image = image
         self.label = label
+
+        self.flip_n= int(flip)+1
+        self.rotate= rotate
         self.transform= torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     def __getitem__(self, i):
-        x=self.transform(torch.FloatTensor(self.image[i]).permute(2,0,1)/255)
-        y=torch.LongTensor([self.label[i]])
+        index= i// self.flip_n 
+        flip = bool( i % self.flip_n )
+
+        if flip == True: 
+            x= np.flip(self.image[index],0).copy()
+            plt.imshow(x)
+            plt.show()
+        else: x= self.image[index]
+        #x=torch.FloatTensor(x).permute(2,0,1)/255
+        x=self.transform(torch.FloatTensor(x).permute(2,0,1)/255)
+        if self.rotate: x=torchvision.transforms.RandomRotation(5)
+
+        y=torch.LongTensor([self.label[index]])
         return x,y
     def __len__(self):
-        return len(self.image)
+        return len(self.image)*self.flip_n
 class ImageDataset(Dataset):
     def __init__(self, image=None, label=None):
         self.image = image
