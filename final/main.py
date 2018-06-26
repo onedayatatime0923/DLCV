@@ -18,7 +18,7 @@ dm= DataManager(tensorboard_dir= TENSORBOARD_DIR)
 EPOCH = 50
 BATCH_SIZE = 48
 LEARNING_RATE = 1E-4
-DROPOUT = 0.5
+#DROPOUT = 0.5
 PRETRAIN = False
 OUTPUT_PATH = './model/model.pt'
 OUTPUT_CHARACTER = 'data/character.txt'
@@ -31,7 +31,7 @@ train_data=dm.readfile('./dataset/train/', './dataset/train_id.txt', save_path=t
 val_data=dm.readfile('./dataset/val', './dataset/val_id.txt', save_path=val_path)
 #dm.character.save(OUTPUT_CHARACTER)
 
-model= CNN_densenet161(DROPOUT, PRETRAIN).cuda()
+model= CNN_densenet161(PRETRAIN).cuda()
 print('Model parameters: {}'.format(dm.count_parameters(model)))
 
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)

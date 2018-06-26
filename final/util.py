@@ -340,7 +340,7 @@ class CNN_vgg16(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
 class CNN_densenet161(nn.Module):
-    def __init__(self, dropout, pretrained=False):
+    def __init__(self, pretrained=False):
         super(CNN_densenet161, self).__init__()
         self.model = models.densenet161(pretrained=pretrained,num_classes=2630)
         self._initialize_weights_vgg()
