@@ -1,5 +1,6 @@
 1che__/*
 data/*
+!data/character.pt
 model/*
 runs/*
 .*
