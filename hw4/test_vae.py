@@ -16,11 +16,7 @@ DATA_DIR = sys.argv[1]
 OUTPUT_DIR= sys.argv[2]
 
 dm = DataManager(LATENT_DIM)
-train_shape, train_label_dim=dm.get_data('train', i_path=['{}/train'.format(DATA_DIR)], c_path= ['{}/train.csv'.format(DATA_DIR)],class_range= LABEL_ID, mode= 'vae', batch_size= BATCH_SIZE, shuffle=True)
 test_shape, test_label_dim=dm.get_data('test', i_path=['{}/test'.format(DATA_DIR)], c_path= ['{}/test.csv'.format(DATA_DIR)],class_range= LABEL_ID, mode= 'vae', batch_size= BATCH_SIZE, shuffle=False)
-assert(train_shape== test_shape)
-assert(train_label_dim == test_label_dim == 1)
-data_shape=train_shape
 
 encoder= torch.load('encoder.pt')
 decoder= torch.load('decoder.pt')

@@ -308,7 +308,6 @@ class CNN_vgg16(nn.Module):
             nn.Dropout(dropout),
             nn.Linear(4096, 2360),
         )
-        self.transform =transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         self._initialize_weights_vgg()
     def forward(self, x):
         x = self.conv(x)
