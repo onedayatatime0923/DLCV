@@ -18,7 +18,6 @@ dm= DataManager(tensorboard_dir= TENSORBOARD_DIR)
 EPOCH = 50
 BATCH_SIZE = 48
 LEARNING_RATE = 1E-4
-#DROPOUT = 0.5
 PRETRAIN = False
 OUTPUT_PATH = './model/model.pt'
 OUTPUT_CHARACTER = 'data/character.txt'
@@ -36,7 +35,7 @@ print('Model parameters: {}'.format(dm.count_parameters(model)))
 
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)
 
-train_dataloader= DataLoader(EasyDataset(*train_data, flip = True, rotate = True, angle = 5)
+train_dataloader= DataLoader(EasyDataset(*train_data, flip = True, rotate = True, angle = 15)
         ,batch_size= BATCH_SIZE, shuffle= True, num_workers = 0)
 val_dataloader= DataLoader(EasyDataset(*val_data),batch_size= BATCH_SIZE, shuffle= False, num_workers = 0)
 

@@ -294,18 +294,18 @@ class DataManager():
 
 
 class CNN_vgg16(nn.Module):
-    def __init__(self, dropout, pretrained=False):
+    def __init__(self, pretrained=False):
         super(CNN_vgg16, self).__init__()
         self.conv = models.vgg16_bn(pretrained=pretrained).features
         self.fc = nn.Sequential(
             nn.Linear(512 * 6 * 5, 4096),
             nn.BatchNorm1d(4096),
             nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
+            nn.Dropout(0.5),
             nn.Linear(4096, 4096),
             nn.BatchNorm1d(4096),
             nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
+            nn.Dropout(0.5),
             nn.Linear(4096, 2360),
         )
         self._initialize_weights_vgg()
