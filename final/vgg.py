@@ -11,11 +11,11 @@ parser = argparse.ArgumentParser(description='DLCV Final')
 #parser.add_argument('-p','--problem', dest='problem',type=int,required=True)
 args = parser.parse_args()
 
-TENSORBOARD_DIR= './runs/train'
+TENSORBOARD_DIR= './runs/vgg'
 
 dm= DataManager(tensorboard_dir= TENSORBOARD_DIR)
 
-EPOCH = 100
+EPOCH =100
 BATCH_SIZE = 48
 LEARNING_RATE = 1E-4
 PRETRAIN = False
@@ -30,7 +30,7 @@ train_data=dm.readfile('./dataset/train/', './dataset/train_id.txt', save_path=t
 val_data=dm.readfile('./dataset/val', './dataset/val_id.txt', save_path=val_path)
 #dm.character.save(OUTPUT_CHARACTER)
 
-model= CNN_densenet161(PRETRAIN).cuda()
+model= CNN_vgg16(PRETRAIN).cuda()
 print('Model parameters: {}'.format(dm.count_parameters(model)))
 
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)

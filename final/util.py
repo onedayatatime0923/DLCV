@@ -374,12 +374,12 @@ class CNN_densenet161(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
 class CNN_squeezenet(nn.Module):
-    def __init__(self, dropout, pretrained=False):
+    def __init__(self, pretrained=False):
         super(CNN_squeezenet, self).__init__()
         self.features = models.squeezenet1_1(pretrained=pretrained).features
         self.final_conv = nn.Conv2d(512, 2630, kernel_size=1)
         self.classifier = nn.Sequential(
-            nn.Dropout(dropout),
+            nn.Dropout(0.5),
             self.final_conv,
             nn.ReLU(inplace=True),
             nn.AvgPool2d((13, 11), stride=1)

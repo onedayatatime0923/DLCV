@@ -11,11 +11,11 @@ parser = argparse.ArgumentParser(description='DLCV Final')
 #parser.add_argument('-p','--problem', dest='problem',type=int,required=True)
 args = parser.parse_args()
 
-TENSORBOARD_DIR= './runs/train'
+TENSORBOARD_DIR= './runs/densenet'
 
 dm= DataManager(tensorboard_dir= TENSORBOARD_DIR)
 
-EPOCH = 100
+EPOCH =100
 BATCH_SIZE = 48
 LEARNING_RATE = 1E-4
 PRETRAIN = False
