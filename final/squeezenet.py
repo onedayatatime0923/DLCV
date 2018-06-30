@@ -2,7 +2,7 @@
 
 import torch
 from torch.utils.data import DataLoader
-from util import DataManager, CNN_squeezenet, CNN_vgg16, CNN_densenet161, EasyDataset
+from util import DataManager, CNN_squeezenet, CNN_vgg16, EasyDataset
 import argparse
 assert torch and DataLoader and CNN_squeezenet and CNN_vgg16 and EasyDataset
 
@@ -19,7 +19,7 @@ EPOCH = 100
 BATCH_SIZE = 48
 LEARNING_RATE = 1E-4
 PRETRAIN = False
-OUTPUT_PATH = './model/model.pt'
+OUTPUT_PATH = './model/squeezenet.pt'
 OUTPUT_CHARACTER = 'data/character.txt'
 
 dm.character.load(OUTPUT_CHARACTER)
