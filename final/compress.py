@@ -50,7 +50,6 @@ class DataManager():
 
         with open(path, 'wb') as f:
                 pickle.dump(weight, f, protocol=pickle.HIGHEST_PROTOCOL)
-        '''
 
 
 '''
