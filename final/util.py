@@ -384,7 +384,7 @@ class CNN_squeezenet(nn.Module):
             nn.ReLU(inplace=True),
             nn.AvgPool2d((13, 11), stride=1)
         )
-        self._initialize_weights_densenet()
+        self._initialize_weights()
     def forward(self, x):
         x = self.features(x)
         x = self.classifier(x)
