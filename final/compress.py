@@ -37,14 +37,15 @@ class DataManager():
         #50,100,150,182
         for key in state_dict:
             print(key)
+            print(state_dict[key].numel())
             if state_dict[key].numel()< cluster:
-                continue
+                weight[key] = (state_dict[key].numpy(),)
             else:
                 size = state_dict[key].size()
                 params = state_dict[key].view(-1,1).numpy()
                 kmeans.fit(params)
-                quantized_table = list(kmeans.cluster_centers_.reshape((-1,)))
-                quantized_weight = kmeans.labels_.reshape(size)
+                quantized_table = kmeans.cluster_centers_.reshape((-1,)).astype(np.uint8)
+                quantized_weight = kmeans.labels_.reshape(size).astype(np.uint8)
                 weight[key] = (quantized_table, quantized_weight)
 
         with open(path, 'wb') as f:
@@ -52,6 +53,7 @@ class DataManager():
         '''
 
 
+'''
 if (sys.argv[1] == 'r'):
         print ('building model...')
         model = torch.load(sys.argv[2]).eval()
