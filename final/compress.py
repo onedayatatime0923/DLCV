@@ -49,6 +49,7 @@ class DataManager():
 
         with open(path, 'wb') as f:
                 pickle.dump(weight, f, protocol=pickle.HIGHEST_PROTOCOL)
+        '''
 
 
 if (sys.argv[1] == 'r'):
@@ -121,6 +122,6 @@ if (sys.argv[1] == 'r'):
 
 if __name__ == '__main__':
     dm = DataManager()
-    model = torch.load('./model/squeezenet.pt').eval()
+    model = torch.load('./model/model.pt').eval()
     print(model)
     dm.save(model, './')
