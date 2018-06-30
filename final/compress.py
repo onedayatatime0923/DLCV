@@ -39,7 +39,7 @@ class DataManager():
             print(key)
             print(state_dict[key].numel())
             if state_dict[key].numel()< cluster:
-                weight[key] = (state_dict[key].numpy(),)
+                weight[key] = state_dict[key].numpy()
             else:
                 size = state_dict[key].size()
                 params = state_dict[key].view(-1,1).numpy()
@@ -50,76 +50,20 @@ class DataManager():
 
         with open(path, 'wb') as f:
                 pickle.dump(weight, f, protocol=pickle.HIGHEST_PROTOCOL)
+    def load(self, path, model):
+        with open(path, 'rb') as f:
+            weight= pickle.load(f)
+        state_dict = {}
+        for key in state_dict:
+            if isinstance(state_dict[key], np.ndarray):
+                state_dict[key] = weight[key][0]
+            else:
+                quantized_table = state_dict[key][0]
+                quantized_weight = state_dict[key][1]
+                state_dict[key] = quantized_weight[quantized_table]
+        model.load_state_dict(state_dict)
 
 
-'''
-if (sys.argv[1] == 'r'):
-        print ('building model...')
-        model = torch.load(sys.argv[2]).eval()
-        state_dict = torch.load('state_dict.pt')
-        reconstruct_state = {}
-        with open('weight_dict.pt', 'rb') as f:
-                weight_dict = pickle.load(f)
-
-        with open('keys', 'rb') as f:
-                keys = pickle.load(f)
-
-        for i in range(len(keys)):
-                key = keys[i]
-                if key[9:13] == 'conv' or key[0:4] == 'conv':
-                        print (key)
-                        layer_dict = weight_dict[key]
-                        layer_weight = state_dict[key].float()
-                        size = list(layer_weight.size())
-                        layer_weight = layer_weight.view(size[0],size[1],size[2],size[3], 1)
-
-                        for i in range(size[0]):
-                                for j in range(size[1]):
-                                        for k in range(size[2]):
-                                                for l in range(size[3]):
-
-                                                        new_weight = torch.tensor(layer_dict[layer_weight[i][j][k][l].numpy().item()])
-                                                        #print (new_weight.size())
-                                                        layer_weight[i][j][k][l].copy_(new_weight)
-                        # for tensor_1 in layer_weight:
-                        #       for tensor_2 in tensor_1:
-                        #               for tensor_3 in tensor_2:
-                        #                       for tensor_4 in tensor_3:
-                        #                               tensor_4.data = torch.from_numpy(layer_dict[tensor_4.numpy().item()])
-                                                        
-                        layer_weight = layer_weight.squeeze()
-                        print (layer_weight.size())
-                        reconstruct_state[key] = layer_weight
-                        model.state_dict()[key].copy_(layer_weight)
-                elif key == 'fc.weight':
-                        print (key)
-                        layer_dict = weight_dict[key]
-                        layer_weight = state_dict[key].float()
-                        size = list(layer_weight.size())
-                        layer_weight = layer_weight.view(size[0],size[1], 1)
-
-                        for i in range(size[0]):
-                                for j in range(size[1]):
-                                        new_weight = torch.tensor(layer_dict[layer_weight[i][j].numpy().item()])
-                                                        #print (new_weight.size())
-                                        layer_weight[i][j].copy_(new_weight)
-                        # for tensor_1 in layer_weight:
-                        #       for tensor_2 in tensor_1:
-                        #               for tensor_3 in tensor_2:
-                        #                       for tensor_4 in tensor_3:
-                        #                               tensor_4.data = torch.from_numpy(layer_dict[tensor_4.numpy().item()])
-                                                        
-                        layer_weight = layer_weight.squeeze()
-                        print (layer_weight.size())
-                        reconstruct_state[key] = layer_weight
-                        model.state_dict()[key].copy_(layer_weight)
-                else:
-                        reconstruct_state[key] = state_dict[key]
-
-        #torch.save(reconstruct_state, 'recon_state.pt')
-        #model.state_dict().copy_(reconstruct_state)
-        torch.save(model, 'recon_model.pt')
-            '''
 
 if __name__ == '__main__':
     dm = DataManager()
