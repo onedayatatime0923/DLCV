@@ -2,7 +2,8 @@
 
 import torch
 from torch.utils.data import DataLoader
-from util import DataManager, CNN_squeezenet, CNN_vgg16, CNN_densenet161, EasyDataset
+from util import DataManager, CNN_squeezenet, CNN_vgg16, EasyDataset
+from torchvision import models
 import argparse
 assert torch and DataLoader and CNN_squeezenet and CNN_vgg16 and EasyDataset
 
@@ -11,15 +12,14 @@ parser = argparse.ArgumentParser(description='DLCV Final')
 #parser.add_argument('-p','--problem', dest='problem',type=int,required=True)
 args = parser.parse_args()
 
-TENSORBOARD_DIR= './runs/vgg'
+TENSORBOARD_DIR= './runs/resnet'
 
 dm= DataManager(tensorboard_dir= TENSORBOARD_DIR)
 
-EPOCH =100
-BATCH_SIZE = 32
+EPOCH = 100
+BATCH_SIZE = 16
 LEARNING_RATE = 1E-4
-PRETRAIN = False
-OUTPUT_PATH = './model/vgg.pt'
+OUTPUT_PATH = './model/resnet.pt'
 OUTPUT_CHARACTER = 'data/character.txt'
 
 dm.character.load(OUTPUT_CHARACTER)
@@ -30,7 +30,7 @@ train_data=dm.readfile('./dataset/train/', './dataset/train_id.txt', save_path=t
 val_data=dm.readfile('./dataset/val', './dataset/val_id.txt', save_path=val_path)
 #dm.character.save(OUTPUT_CHARACTER)
 
-model= CNN_vgg16(PRETRAIN).cuda()
+model= models.resnet50(num_classes=2630).cuda()
 print('Model parameters: {}'.format(dm.count_parameters(model)))
 
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)
