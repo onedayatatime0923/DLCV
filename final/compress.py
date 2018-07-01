@@ -112,6 +112,51 @@ class CNN_squeezenet(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
 
+class CNN_vgg16(nn.Module):
+    def __init__(self, pretrained=False):
+        super(CNN_vgg16, self).__init__()
+        self.conv = models.vgg16_bn(pretrained=pretrained).features
+        self.fc = nn.Sequential(
+            nn.Linear(512 * 6 * 5, 4096),
+            nn.BatchNorm1d(4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(4096, 4096),
+            nn.BatchNorm1d(4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(4096, 2360),
+        )
+        self._initialize_weights_vgg()
+    def forward(self, x):
+        x = self.conv(x)
+        x = x.view(x.size(0),-1)
+        x = self.fc(x)
+        return x
+    def save(self, path):
+        torch.save(self,path)
+    def _initialize_weights_vgg(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
+    def _initialize_weights_densenet(self):
+        # Official init from torch repo.
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.constant_(m.bias, 0)
 
 if __name__ == '__main__':
     dm = DataManager()
