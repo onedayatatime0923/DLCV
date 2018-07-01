@@ -1,5 +1,5 @@
 
-import time, math, os
+import time, math, os, argparse
 import numpy as np
 import torch
 from sklearn.cluster import KMeans
@@ -24,7 +24,7 @@ class DataManager():
         m = math.floor(s / 60)
         s -= m * 60
         return '%dm %ds' % (m, s)
-    def save(self, model, dir, cluster= 16):
+    def save(self, model, dir, cluster=256):
         model = model.cpu().eval()
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -167,12 +167,17 @@ class CNN_vgg16(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 if __name__ == '__main__':
-    dm = DataManager()
-    '''
-    model = torch.load('./model/resnet50.pt')
-    dm.save(model, './model/resnet')
-    '''
+    parser = argparse.ArgumentParser(description='DLCV Final')
+    parser.add_argument('-i','--input', dest='input',type=str,required=True)
+    parser.add_argument('-n','--compress_n', dest='compress_n',type=int,required=True)
+    args = parser.parse_args()
 
-    model = resnet50()
-    torch.save(dm.load('./model/resnet', model),
-            './model/resnet50_recover.pt')
+    output= 'model/{}'.format(args.input.split('/')[-1].split('.')[0])
+    recover= 'model/{}_{}'.format(args.input.split('/')[-1].split('.')[0],args.compress_n)
+    dm = DataManager()
+    model = torch.load(args.input)
+    dm.save(model, output, pow(2,args.compress_n) )
+
+    model = CNN_vgg16()
+    torch.save(dm.load(output, model),
+            recover)
