@@ -16,6 +16,8 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.decomposition import PCA, TruncatedSVD
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.cluster import MiniBatchKMeans
+import pickle
 assert Variable and F and DataLoader and torchvision and random and misc and plt
 
 
@@ -291,6 +293,46 @@ class DataManager():
         output=np.hstack((idx,test))
         myoutput=pd.DataFrame(output,columns=["id","ans"])
         myoutput.to_csv(path,index=False)
+    def save(self, model, path, cluster= 256):
+        model = model.cpu().eval()
+        state_dict = model.state_dict()
+        weight = {}
+        #kmeans= KMeans(n_clusters=cluster, random_state=0)
+        kmeans= MiniBatchKMeans(n_clusters=cluster, random_state=0, n_jobs=4)
+
+        for key in state_dict:
+            print(key)
+            print(state_dict[key].numel())
+            if state_dict[key].numel()<= cluster:
+            #layer = key.split('.')
+            #if state_dict[key].numel()<= cluster:
+                weight[key] = state_dict[key].numpy()
+            else:
+                size = state_dict[key].size()
+                params = state_dict[key].view(-1,1).numpy()
+                kmeans.fit(params)
+                quantized_table = kmeans.cluster_centers_.reshape((-1,))
+                quantized_weight = kmeans.labels_.reshape(size).astype(np.uint8)
+                weight[key] = (quantized_table, quantized_weight)
+
+        with open(path, 'wb') as f:
+                pickle.dump(weight, f, protocol=pickle.HIGHEST_PROTOCOL)
+    def load(self, path, model):
+        with open(path, 'rb') as f:
+            weight= pickle.load(f)
+        state_dict = {}
+        for key in weight:
+            #print(key)
+            if isinstance(weight[key], np.ndarray):
+                #print(weight[key].shape)
+                state_dict[key] = torch.from_numpy(weight[key])
+            else:
+                quantized_table = weight[key][0]
+                quantized_weight = weight[key][1]
+                #print(quantized_weight.shape)
+                state_dict[key] = torch.from_numpy(quantized_table[quantized_weight.reshape((-1))].reshape((quantized_weight.shape)))
+        model.load_state_dict(state_dict)
+        return model
 
 
 class CNN_vgg16(nn.Module):

@@ -25,8 +25,7 @@ class DataManager():
         model = model.cpu().eval()
         state_dict = model.state_dict()
         weight = {}
-        #kmeans= KMeans(n_clusters=cluster, random_state=0)
-        kmeans= MiniBatchKMeans(n_clusters=cluster, random_state=0, n_jobs=4)
+        kmeans= MiniBatchKMeans(n_clusters=cluster, random_state=0)
 
         for key in state_dict:
             print(key)
@@ -161,10 +160,10 @@ class CNN_vgg16(nn.Module):
 
 if __name__ == '__main__':
     dm = DataManager()
-    '''
-    model = torch.load('./model/model.pt')
-    dm.save(model, './model/model_compress.pt')
+    model = torch.load('./model/resnet50.pt')
+    dm.save(model, './model/resnet_compress.pt')
     '''
     model = CNN_vgg16()
     torch.save(dm.load('./model/model_compress.pt', model),
             './model/model_recover.pt')
+    '''

@@ -2,9 +2,10 @@
 
 import torch
 from torch.utils.data import DataLoader
-from util import DataManager, CNN_squeezenet, CNN_vgg16, EasyDataset
 import argparse
-assert torch and DataLoader and CNN_squeezenet and EasyDataset
+from util import DataManager, CNN_squeezenet, CNN_vgg16, EasyDataset
+from resnet import resnet50
+assert torch and DataLoader and CNN_squeezenet and CNN_vgg16 and EasyDataset
 
 
 parser = argparse.ArgumentParser(description='DLCV Final')
@@ -19,7 +20,7 @@ BATCH_SIZE = 32
 LEARNING_RATE = 1E-4
 DROPOUT = 0.5
 PRETRAIN = False
-INPUT_MODEL = './model/model_recover.pt'
+INPUT_MODEL = './model/resnet_compress.pt'
 INPUT_CHARACTER = 'data/character.txt'
 OUTPUT_PATH = './output.csv'
 
@@ -27,7 +28,8 @@ dm.character.load(INPUT_CHARACTER)
 test_path='./data/test.npy'
 test_data=dm.readtestfile('./dataset/test/', save_path= test_path)
 
-model= torch.load(INPUT_MODEL).cuda()
+model= resnet50()
+model= dm.load(INPUT_MODEL, model).cuda()
 print('Model parameters: {}'.format(dm.count_parameters(model)))
 
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)
