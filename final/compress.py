@@ -60,6 +60,7 @@ class DataManager():
                 print(quantized_weight.shape)
                 state_dict[key] = torch.from_numpy(quantized_table[quantized_weight.reshape((-1))].reshape((quantized_weight.shape)))
         model.load_state_dict(state_dict)
+        return model
 
 class CNN_squeezenet(nn.Module):
     def __init__(self, pretrained=False):
@@ -160,9 +161,10 @@ class CNN_vgg16(nn.Module):
 
 if __name__ == '__main__':
     dm = DataManager()
-    model = torch.load('./model/squeezenet.pt')
-    dm.save(model, './model/squeezenet_compress.pt')
     '''
-    model = CNN_squeezenet()
-    dm.load('./model/squeezenet_compress.pt', model)
+    model = torch.load('./model/model.pt')
+    dm.save(model, './model/model_compress.pt')
     '''
+    model = CNN_vgg16()
+    torch.save(dm.load('./model/model_compress.pt', model),
+            './model/model_recover.pt')
