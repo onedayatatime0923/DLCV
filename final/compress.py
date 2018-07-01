@@ -25,8 +25,8 @@ class DataManager():
         model = model.cpu().eval()
         state_dict = model.state_dict()
         weight = {}
-        kmeans= KMeans(n_clusters=cluster, random_state=0)
-        #kmeans= MiniBatchKMeans(n_clusters=cluster, random_state=0, n_jobs=4)
+        #kmeans= KMeans(n_clusters=cluster, random_state=0)
+        kmeans= MiniBatchKMeans(n_clusters=cluster, random_state=0, n_jobs=4)
 
         for key in state_dict:
             print(key)
