@@ -25,8 +25,8 @@ class DataManager():
         model = model.cpu().eval()
         state_dict = model.state_dict()
         weight = {}
-        #kmeans= KMeans(n_clusters=cluster, random_state=0, n_jobs=4)
-        kmeans= MiniBatchKMeans(n_clusters=cluster, random_state=0, n_jobs=4)
+        kmeans= KMeans(n_clusters=cluster, random_state=0)
+        #kmeans= MiniBatchKMeans(n_clusters=cluster, random_state=0, n_jobs=4)
 
         for key in state_dict:
             print(key)
@@ -39,8 +39,8 @@ class DataManager():
                 size = state_dict[key].size()
                 params = state_dict[key].view(-1,1).numpy()
                 kmeans.fit(params)
-                quantized_table = kmeans.cluster_centers_.reshape((-1,)).astype(np.uint8)
-                quantized_weight = kmeans.labels_.reshape(size)
+                quantized_table = kmeans.cluster_centers_.reshape((-1,))
+                quantized_weight = kmeans.labels_.reshape(size).astype(np.uint8)
                 weight[key] = (quantized_table, quantized_weight)
 
         with open(path, 'wb') as f:
