@@ -15,9 +15,9 @@ args = parser.parse_args()
 dm= DataManager()
 
 BATCH_SIZE = 32
-INPUT_MODEL = './model/vgg_recover.pt'
+INPUT_MODEL = './model/resnet50_recover.pt'
 INPUT_CHARACTER = 'data/character.txt'
-OUTPUT_PATH = './vgg_output.csv'
+OUTPUT_PATH = './resnet_output.csv'
 
 dm.character.load(INPUT_CHARACTER)
 val_path=['./data/valx.npy','./data/valy.npy']

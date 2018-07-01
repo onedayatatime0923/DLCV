@@ -168,9 +168,11 @@ class CNN_vgg16(nn.Module):
 
 if __name__ == '__main__':
     dm = DataManager()
+    '''
     model = torch.load('./model/resnet50.pt')
     dm.save(model, './model/resnet')
+    '''
 
-    model = CNN_vgg16()
+    model = resnet50()
     torch.save(dm.load('./model/resnet', model),
-            './model/resnet50.pt')
+            './model/resnet50_recover.pt')
