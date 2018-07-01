@@ -9,7 +9,8 @@ import torch.nn as nn
 from torchvision import models
 from resnet import resnet50
 from huffman.huffman import HuffmanCoding
-assert KMeans, MiniBatchKMeans
+from util import CNN_vgg16
+assert KMeans and MiniBatchKMeans and resnet50 and CNN_vgg16
 
 
 class DataManager():
@@ -23,7 +24,7 @@ class DataManager():
         m = math.floor(s / 60)
         s -= m * 60
         return '%dm %ds' % (m, s)
-    def save(self, model, dir, cluster= 256):
+    def save(self, model, dir, cluster= 16):
         model = model.cpu().eval()
         if not os.path.exists(dir):
             os.makedirs(dir)
@@ -58,12 +59,12 @@ class DataManager():
         for key in weight:
             print('\rsaving model layer {}...     '.format(key),end='')
             if isinstance(weight[key], np.ndarray):
-                print(weight[key].shape)
+                #print(weight[key].shape)
                 state_dict[key] = torch.from_numpy(weight[key])
             else:
                 quantized_table = weight[key][0]
                 quantized_weight = np.array(layer_list[weight[key][1]])
-                print(quantized_weight.shape)
+                #print(quantized_weight.shape)
                 state_dict[key] = torch.from_numpy(quantized_table[quantized_weight]).view_as(model_dict[key])
         model.load_state_dict(state_dict)
         return model
@@ -167,10 +168,9 @@ class CNN_vgg16(nn.Module):
 
 if __name__ == '__main__':
     dm = DataManager()
-    '''
     model = torch.load('./model/resnet50.pt')
     dm.save(model, './model/resnet')
-    '''
-    model = resnet50()
+
+    model = CNN_vgg16()
     torch.save(dm.load('./model/resnet', model),
-            './model/model_recover.pt')
+            './model/resnet50.pt')
