@@ -39,8 +39,8 @@ class DataManager():
                 size = state_dict[key].size()
                 params = state_dict[key].view(-1,1).numpy()
                 kmeans.fit(params)
-                quantized_table = kmeans.cluster_centers_.reshape((-1,)).astype(np.uint8)
-                quantized_weight = kmeans.labels_.reshape(size)
+                quantized_table = kmeans.cluster_centers_.reshape((-1,))
+                quantized_weight = kmeans.labels_.reshape(size).astype(np.uint8)
                 weight[key] = (quantized_table, quantized_weight)
 
         with open(path, 'wb') as f:
@@ -60,6 +60,7 @@ class DataManager():
                 print(quantized_weight.shape)
                 state_dict[key] = torch.from_numpy(quantized_table[quantized_weight.reshape((-1))].reshape((quantized_weight.shape)))
         model.load_state_dict(state_dict)
+        return model
 
 class CNN_squeezenet(nn.Module):
     def __init__(self, pretrained=False):
@@ -164,5 +165,6 @@ if __name__ == '__main__':
     model = torch.load('./model/model.pt')
     dm.save(model, './model/model_compress.pt')
     '''
-    model = CNN_squeezenet()
-    dm.load('./model/model_compress_recover.pt', model)
+    model = CNN_vgg16()
+    torch.save(dm.load('./model/model_compress.pt', model),
+            './model/model_recover.pt')
