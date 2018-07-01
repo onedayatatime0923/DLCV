@@ -2,7 +2,7 @@
 
 import torch
 from torch.utils.data import DataLoader
-from util import DataManager, CNN_squeezenet, CNN_vgg16, CNN_densenet161, EasyDataset
+from util import DataManager, CNN_squeezenet, CNN_vgg16, EasyDataset
 import argparse
 assert torch and DataLoader and CNN_squeezenet and CNN_vgg16 and EasyDataset
 

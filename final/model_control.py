@@ -1,5 +1,5 @@
 
-import time, math
+import time, math, os
 import numpy as np
 import torch
 from sklearn.cluster import KMeans
@@ -7,6 +7,8 @@ from sklearn.cluster import MiniBatchKMeans
 import pickle
 import torch.nn as nn
 from torchvision import models
+from resnet import resnet50
+from huffman.huffman import HuffmanCoding
 assert KMeans, MiniBatchKMeans
 
 
@@ -21,43 +23,48 @@ class DataManager():
         m = math.floor(s / 60)
         s -= m * 60
         return '%dm %ds' % (m, s)
-    def save(self, model, path, cluster= 256):
+    def save(self, model, dir, cluster= 256):
         model = model.cpu().eval()
+        if not os.path.exists(dir):
+            os.makedirs(dir)
         state_dict = model.state_dict()
         weight = {}
         kmeans= MiniBatchKMeans(n_clusters=cluster, random_state=0)
 
+        layer_list = []
         for key in state_dict:
-            print(key)
-            print(state_dict[key].numel())
+            length = state_dict[key].numel()
+            print('\rsaving model layer {}, size {}...     '.format(key, length),end='')
             if state_dict[key].numel()<= cluster:
-            #layer = key.split('.')
-            #if state_dict[key].numel()<= cluster:
                 weight[key] = state_dict[key].numpy()
             else:
-                size = state_dict[key].size()
                 params = state_dict[key].view(-1,1).numpy()
                 kmeans.fit(params)
                 quantized_table = kmeans.cluster_centers_.reshape((-1,))
-                quantized_weight = kmeans.labels_.reshape(size).astype(np.uint8)
-                weight[key] = (quantized_table, quantized_weight)
-
-        with open(path, 'wb') as f:
+                quantized_weight = kmeans.labels_.astype(np.uint8)
+                layer_list.append(list(quantized_weight))
+                weight[key] = (quantized_table, len(layer_list)-1)
+        with open('{}/table.pt'.format(dir), 'wb') as f:
                 pickle.dump(weight, f, protocol=pickle.HIGHEST_PROTOCOL)
-    def load(self, path, model):
-        with open(path, 'rb') as f:
+        huffman = HuffmanCoding()
+        huffman.compress(layer_list, '{}/weight.pt'.format(dir), '{}/code.pt'.format(dir))
+    def load(self, dir, model):
+        with open('{}/table.pt'.format(dir), 'rb') as f:
             weight= pickle.load(f)
+        huffman = HuffmanCoding()
+        layer_list=huffman.decompress('{}/weight.pt'.format(dir), '{}/code.pt'.format(dir))
         state_dict = {}
+        model_dict = model.state_dict()
         for key in weight:
-            print(key)
+            print('\rsaving model layer {}...     '.format(key),end='')
             if isinstance(weight[key], np.ndarray):
                 print(weight[key].shape)
                 state_dict[key] = torch.from_numpy(weight[key])
             else:
                 quantized_table = weight[key][0]
-                quantized_weight = weight[key][1]
+                quantized_weight = np.array(layer_list[weight[key][1]])
                 print(quantized_weight.shape)
-                state_dict[key] = torch.from_numpy(quantized_table[quantized_weight.reshape((-1))].reshape((quantized_weight.shape)))
+                state_dict[key] = torch.from_numpy(quantized_table[quantized_weight]).view_as(model_dict[key])
         model.load_state_dict(state_dict)
         return model
 
@@ -160,10 +167,10 @@ class CNN_vgg16(nn.Module):
 
 if __name__ == '__main__':
     dm = DataManager()
+    '''
     model = torch.load('./model/resnet50.pt')
-    dm.save(model, './model/resnet_compress.pt')
+    dm.save(model, './model/resnet')
     '''
-    model = CNN_vgg16()
-    torch.save(dm.load('./model/model_compress.pt', model),
+    model = resnet50()
+    torch.save(dm.load('./model/resnet', model),
             './model/model_recover.pt')
-    '''
