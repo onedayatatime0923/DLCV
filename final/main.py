@@ -3,9 +3,9 @@
 import torch
 from torch.utils.data import DataLoader
 import argparse
-from resnet import resnet152
 from util import DataManager, CNN_squeezenet, CNN_vgg16, EasyDataset
-assert torch and DataLoader and CNN_squeezenet and CNN_vgg16 and EasyDataset
+from util import resnet50, ShuffleNet
+assert torch and DataLoader and CNN_squeezenet and CNN_vgg16 and EasyDataset and resnet50 and ShuffleNet
 
 
 parser = argparse.ArgumentParser(description='DLCV Final')
@@ -31,7 +31,7 @@ train_data=dm.readfile('./dataset/train/', './dataset/train_id.txt', save_path=t
 val_data=dm.readfile('./dataset/val', './dataset/val_id.txt', save_path=val_path)
 #dm.character.save(OUTPUT_CHARACTER)
 
-model= resnet152(num_classes = 2630).cuda()
+model= CNN_vgg16(num_classes = 2630).cuda()
 print('Model parameters: {}'.format(dm.count_parameters(model)))
 
 optimizer = torch.optim.Adam(model.parameters(),lr=LEARNING_RATE)

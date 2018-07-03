@@ -172,8 +172,8 @@ if __name__ == '__main__':
     parser.add_argument('-n','--compress_n', dest='compress_n',type=int,required=True)
     args = parser.parse_args()
 
-    output= 'model/{}'.format(args.input.split('/')[-1].split('.')[0])
-    recover= 'model/{}_{}'.format(args.input.split('/')[-1].split('.')[0],args.compress_n)
+    output= 'model/{}_{}'.format(args.input.split('/')[-1].split('.')[0],args.compress_n)
+    recover= 'model/{}_{}_recover.pt'.format(args.input.split('/')[-1].split('.')[0],args.compress_n)
     dm = DataManager()
     model = torch.load(args.input)
     dm.save(model, output, pow(2,args.compress_n) )
